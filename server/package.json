@@ -1,0 +1,20 @@
+{
+  "name": "estava-server",
+  "version": "1.0.0",
+  "description": "Estava Real Estate Listing Mobile App",
+  "license": "ISC",
+  "author": "Nadil Dulnidu",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}
