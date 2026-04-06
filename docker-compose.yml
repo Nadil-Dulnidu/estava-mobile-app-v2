@@ -1,11 +1,11 @@
 services:
-  app:
+  estava-server:
     build:
-      context: .
+      context: ./server
       target: dev
       dockerfile: Dockerfile
     volumes:
-      - .:/app
+      - ./server:/app
       - /app/node_modules
     ports:
       - "5000:5000"
