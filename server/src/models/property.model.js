@@ -179,20 +179,6 @@ const propertySchema = new Schema(
       ref: "User",
       default: null,
     },
-    deletedBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
-    deletedAt: {
-      type: Date,
-      default: null,
-    },
   },
   {
     timestamps: true,
@@ -226,12 +212,13 @@ propertySchema.pre("validate", function enforcePropertyRules(next) {
   next();
 });
 
-propertySchema.index({ city: 1, isDeleted: 1 });
-propertySchema.index({ propertyType: 1, isDeleted: 1 });
-propertySchema.index({ listingType: 1, isDeleted: 1 });
-propertySchema.index({ status: 1, isDeleted: 1 });
-propertySchema.index({ price: 1, isDeleted: 1 });
-propertySchema.index({ createdAt: -1, isDeleted: 1 });
+propertySchema.index({ city: 1 });
+propertySchema.index({ propertyType: 1 });
+propertySchema.index({ listingType: 1 });
+propertySchema.index({ status: 1 });
+propertySchema.index({ price: 1 });
+propertySchema.index({ createdBy: 1, createdAt: -1 });
+propertySchema.index({ createdAt: -1 });
 propertySchema.index({ title: "text", description: "text", address: "text" });
 
 const Property = mongoose.model("Property", propertySchema);

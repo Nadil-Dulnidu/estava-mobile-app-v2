@@ -7,11 +7,13 @@ import {
   featureListSchema,
   imageIdParamSchema,
   listPropertiesQuerySchema,
+  ownerIdParamSchema,
   propertyIdParamSchema,
   removeFeaturesSchema,
   updateImageSchema,
   updatePropertySchema,
   updateStatusSchema,
+  uploadImageSchema,
 } from "../validators/property.validator.js";
 
 const router = Router();
@@ -20,6 +22,19 @@ router
   .route("/")
   .post(validate(createPropertySchema), propertyController.createProperty)
   .get(validate(listPropertiesQuerySchema, "query"), propertyController.getProperties);
+
+router.get(
+  "/mine",
+  validate(listPropertiesQuerySchema, "query"),
+  propertyController.getMyProperties
+);
+
+router.get(
+  "/owner/:ownerId",
+  validate(ownerIdParamSchema, "params"),
+  validate(listPropertiesQuerySchema, "query"),
+  propertyController.getPropertiesByOwner
+);
 
 router
   .route("/:id")
@@ -43,6 +58,13 @@ router.post(
   validate(propertyIdParamSchema, "params"),
   validate(addImagesSchema),
   propertyController.addImages
+);
+
+router.post(
+  "/:id/images/upload",
+  validate(propertyIdParamSchema, "params"),
+  validate(uploadImageSchema),
+  propertyController.uploadImage
 );
 
 router.patch(

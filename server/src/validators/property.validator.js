@@ -81,9 +81,6 @@ export const createPropertySchema = withCoverRule(
     city: basePropertySchema.city.required(),
     createdBy: Joi.forbidden(),
     updatedBy: Joi.forbidden(),
-    deletedBy: Joi.forbidden(),
-    isDeleted: Joi.forbidden(),
-    deletedAt: Joi.forbidden(),
   }).custom((value, helpers) => {
     const isLand = value.propertyType === "land";
     const hasBedrooms = value.bedrooms !== undefined && value.bedrooms !== null;
@@ -104,15 +101,18 @@ export const updatePropertySchema = withCoverRule(
     ...basePropertySchema,
     createdBy: Joi.forbidden(),
     updatedBy: Joi.forbidden(),
-    deletedBy: Joi.forbidden(),
-    isDeleted: Joi.forbidden(),
-    deletedAt: Joi.forbidden(),
   }).min(1)
 );
 
 export const propertyIdParamSchema = Joi.object({
   id: Joi.string().pattern(objectIdRegex).required().messages({
     "string.pattern.base": "Invalid property id",
+  }),
+});
+
+export const ownerIdParamSchema = Joi.object({
+  ownerId: Joi.string().pattern(objectIdRegex).required().messages({
+    "string.pattern.base": "Invalid owner id",
   }),
 });
 
@@ -146,6 +146,9 @@ export const listPropertiesQuerySchema = Joi.object({
     .lowercase()
     .valid(...PROPERTY_STATUSES),
   city: Joi.string().trim().max(80),
+  ownerId: Joi.string().pattern(objectIdRegex).messages({
+    "string.pattern.base": "Invalid owner id",
+  }),
   minPrice: Joi.number().min(0),
   maxPrice: Joi.number().min(0),
   minBedrooms: Joi.number().integer().min(0),
@@ -184,6 +187,13 @@ export const updateStatusSchema = Joi.object({
 
 export const addImagesSchema = Joi.object({
   images: Joi.array().items(imageSchema).min(1).required(),
+});
+
+export const uploadImageSchema = Joi.object({
+  file: Joi.string().trim().min(20).required(),
+  fileName: Joi.string().trim().min(3).max(180).required(),
+  altText: Joi.string().trim().max(150).allow(null, ""),
+  isCover: Joi.boolean().default(false),
 });
 
 export const updateImageSchema = Joi.object({

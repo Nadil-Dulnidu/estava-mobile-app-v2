@@ -3,7 +3,12 @@ import * as propertyService from "../services/property.service.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { sendSuccess } from "../utils/response.js";
 
-const getActorId = (req) => req.user?.id || req.user?._id || req.headers["x-user-id"];
+const getActorId = (req) =>
+  req.user?.id ||
+  req.user?._id ||
+  req.user?.userId ||
+  req.auth?.userId ||
+  req.headers["x-user-id"];
 
 export const createProperty = asyncHandler(async (req, res) => {
   const actorId = getActorId(req);
@@ -11,6 +16,7 @@ export const createProperty = asyncHandler(async (req, res) => {
 
   logger.info("Property created", {
     propertyId: property._id,
+    ownerId: property.createdBy,
     actorId,
   });
 
@@ -26,6 +32,27 @@ export const getProperties = asyncHandler(async (req, res) => {
 
   return sendSuccess(res, {
     message: "Properties fetched successfully",
+    data: result.items,
+    meta: result.meta,
+  });
+});
+
+export const getPropertiesByOwner = asyncHandler(async (req, res) => {
+  const result = await propertyService.getOwnerProperties(req.params.ownerId, req.query);
+
+  return sendSuccess(res, {
+    message: "Owner properties fetched successfully",
+    data: result.items,
+    meta: result.meta,
+  });
+});
+
+export const getMyProperties = asyncHandler(async (req, res) => {
+  const actorId = getActorId(req);
+  const result = await propertyService.getOwnerProperties(actorId, req.query);
+
+  return sendSuccess(res, {
+    message: "My properties fetched successfully",
     data: result.items,
     meta: result.meta,
   });
@@ -56,16 +83,14 @@ export const updateProperty = asyncHandler(async (req, res) => {
 });
 
 export const deleteProperty = asyncHandler(async (req, res) => {
-  const actorId = getActorId(req);
-  await propertyService.softDeleteProperty(req.params.id, actorId);
+  await propertyService.hardDeleteProperty(req.params.id);
 
-  logger.info("Property deleted (soft)", {
+  logger.info("Property hard deleted", {
     propertyId: req.params.id,
-    actorId,
   });
 
   return sendSuccess(res, {
-    message: "Property deleted successfully",
+    message: "Property deleted permanently",
     data: null,
   });
 });
@@ -102,6 +127,21 @@ export const addImages = asyncHandler(async (req, res) => {
 
   return sendSuccess(res, {
     message: "Property images added successfully",
+    data: property,
+  });
+});
+
+export const uploadImage = asyncHandler(async (req, res) => {
+  const actorId = getActorId(req);
+  const property = await propertyService.uploadPropertyImage(req.params.id, req.body, actorId);
+
+  logger.info("Property image uploaded to ImageKit", {
+    propertyId: property._id,
+    actorId,
+  });
+
+  return sendSuccess(res, {
+    message: "Property image uploaded successfully",
     data: property,
   });
 });

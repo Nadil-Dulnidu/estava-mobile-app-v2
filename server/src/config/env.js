@@ -11,6 +11,10 @@ const env = {
   rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
   rateLimitMax: Number(process.env.RATE_LIMIT_MAX) || 200,
   jsonLimit: process.env.JSON_LIMIT || "1mb",
+  imageKitPublicKey: process.env.IMAGEKIT_PUBLIC_KEY || "",
+  imageKitPrivateKey: process.env.IMAGEKIT_PRIVATE_KEY || "",
+  imageKitUrlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || "",
+  imageKitFolder: process.env.IMAGEKIT_FOLDER || "/properties",
 };
 
 export default env;
