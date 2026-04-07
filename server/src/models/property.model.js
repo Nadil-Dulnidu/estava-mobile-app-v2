@@ -169,15 +169,15 @@ const propertySchema = new Schema(
       default: [],
     },
     createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
+      type: String,
       required: true,
       index: true,
+      trim: true,
     },
     updatedBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
+      type: String,
       default: null,
+      trim: true,
     },
   },
   {

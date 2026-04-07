@@ -11,6 +11,8 @@ const env = {
   rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
   rateLimitMax: Number(process.env.RATE_LIMIT_MAX) || 200,
   jsonLimit: process.env.JSON_LIMIT || "1mb",
+  clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY || "",
+  clerkSecretKey: process.env.CLERK_SECRET_KEY || "",
   imageKitPublicKey: process.env.IMAGEKIT_PUBLIC_KEY || "",
   imageKitPrivateKey: process.env.IMAGEKIT_PRIVATE_KEY || "",
   imageKitUrlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || "",

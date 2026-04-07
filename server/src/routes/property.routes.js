@@ -1,5 +1,7 @@
 import { Router } from "express";
 import * as propertyController from "../controllers/property.controller.js";
+import { USER_ROLES } from "../constants/auth.constants.js";
+import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 import validate from "../middlewares/validate.middleware.js";
 import {
   addImagesSchema,
@@ -18,6 +20,8 @@ import {
 
 const router = Router();
 
+router.use(...authenticate);
+
 router
   .route("/")
   .post(validate(createPropertySchema), propertyController.createProperty)
@@ -31,6 +35,7 @@ router.get(
 
 router.get(
   "/owner/:ownerId",
+  authorizeRoles(USER_ROLES.ADMIN),
   validate(ownerIdParamSchema, "params"),
   validate(listPropertiesQuerySchema, "query"),
   propertyController.getPropertiesByOwner

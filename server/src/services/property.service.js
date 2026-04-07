@@ -1,6 +1,6 @@
-import mongoose from "mongoose";
 import env from "../config/env.js";
 import imageKit, { hasImageKitConfig } from "../config/imagekit.js";
+import { USER_ROLES } from "../constants/auth.constants.js";
 import {
   PROPERTY_STATUSES,
   STATUS_TRANSITIONS,
@@ -52,13 +52,28 @@ const sanitizePropertyPayload = (payload = {}) => {
   return next;
 };
 
-const buildListFilter = (query) => {
+const isAdminRole = (role) => role === USER_ROLES.ADMIN;
+
+const ensureOwnerOrAdmin = (property, actorId, actorRole) => {
+  if (isAdminRole(actorRole)) return;
+
+  if (!actorId || property.createdBy !== actorId) {
+    throw new AppError("You do not have permission to manage this property", 403);
+  }
+};
+
+const buildListFilter = (query, actorId, actorRole) => {
   const filter = {};
 
   if (query.listingType) filter.listingType = query.listingType;
   if (query.propertyType) filter.propertyType = query.propertyType;
   if (query.status) filter.status = query.status;
-  if (query.ownerId) filter.createdBy = query.ownerId;
+
+  if (isAdminRole(actorRole)) {
+    if (query.ownerId) filter.createdBy = query.ownerId;
+  } else {
+    filter.createdBy = actorId;
+  }
 
   if (query.city) filter.city = new RegExp(`^${query.city}$`, "i");
   if (query.search) filter.$text = { $search: query.search };
@@ -89,7 +104,7 @@ const findPropertyByIdOrThrow = async (propertyId) => {
 };
 
 export const createProperty = async (payload, actorId) => {
-  if (!actorId || !mongoose.isValidObjectId(actorId)) {
+  if (!actorId) {
     throw new AppError("Authenticated user id is required to create property", 401);
   }
 
@@ -104,13 +119,17 @@ export const createProperty = async (payload, actorId) => {
   return property;
 };
 
-export const listProperties = async (query) => {
+export const listProperties = async (query, actorId, actorRole) => {
+  if (!actorId) {
+    throw new AppError("Authenticated user id is required", 401);
+  }
+
   const page = query.page;
   const limit = query.limit;
   const skip = (page - 1) * limit;
   const sortDirection = query.sortOrder === "asc" ? 1 : -1;
 
-  const filter = buildListFilter(query);
+  const filter = buildListFilter(query, actorId, actorRole);
 
   const sort = query.search
     ? { score: { $meta: "textScore" }, [query.sortBy]: sortDirection }
@@ -134,23 +153,32 @@ export const listProperties = async (query) => {
   };
 };
 
-export const getOwnerProperties = async (ownerId, query) => {
-  if (!mongoose.isValidObjectId(ownerId)) {
-    throw new AppError("Invalid owner id", 400);
+export const getOwnerProperties = async (ownerId, query, actorId, actorRole) => {
+  if (!ownerId) {
+    throw new AppError("Owner id is required", 400);
   }
 
-  return listProperties({ ...query, ownerId });
+  if (!isAdminRole(actorRole) && ownerId !== actorId) {
+    throw new AppError("You do not have permission to view these properties", 403);
+  }
+
+  return listProperties({ ...query, ownerId }, actorId, actorRole);
 };
 
-export const getPropertyById = async (propertyId) => findPropertyByIdOrThrow(propertyId);
-
-export const updateProperty = async (propertyId, payload, actorId) => {
+export const getPropertyById = async (propertyId, actorId, actorRole) => {
   const property = await findPropertyByIdOrThrow(propertyId);
-  const sanitized = sanitizePropertyPayload(payload);
+  ensureOwnerOrAdmin(property, actorId, actorRole);
+  return property;
+};
 
+export const updateProperty = async (propertyId, payload, actorId, actorRole) => {
+  const property = await findPropertyByIdOrThrow(propertyId);
+  ensureOwnerOrAdmin(property, actorId, actorRole);
+
+  const sanitized = sanitizePropertyPayload(payload);
   Object.assign(property, sanitized);
 
-  if (actorId && mongoose.isValidObjectId(actorId)) {
+  if (actorId) {
     property.updatedBy = actorId;
   }
 
@@ -158,20 +186,20 @@ export const updateProperty = async (propertyId, payload, actorId) => {
   return property;
 };
 
-export const hardDeleteProperty = async (propertyId) => {
-  const deleted = await Property.findByIdAndDelete(propertyId);
+export const hardDeleteProperty = async (propertyId, actorId, actorRole) => {
+  const property = await findPropertyByIdOrThrow(propertyId);
+  ensureOwnerOrAdmin(property, actorId, actorRole);
 
-  if (!deleted) {
-    throw new AppError("Property not found", 404);
-  }
+  await Property.findByIdAndDelete(property._id);
 };
 
-export const changePropertyStatus = async (propertyId, nextStatus, actorId) => {
+export const changePropertyStatus = async (propertyId, nextStatus, actorId, actorRole) => {
   if (!PROPERTY_STATUSES.includes(nextStatus)) {
     throw new AppError("Invalid property status", 400);
   }
 
   const property = await findPropertyByIdOrThrow(propertyId);
+  ensureOwnerOrAdmin(property, actorId, actorRole);
 
   if (property.status === nextStatus) {
     return property;
@@ -188,7 +216,7 @@ export const changePropertyStatus = async (propertyId, nextStatus, actorId) => {
 
   property.status = nextStatus;
 
-  if (actorId && mongoose.isValidObjectId(actorId)) {
+  if (actorId) {
     property.updatedBy = actorId;
   }
 
@@ -196,8 +224,10 @@ export const changePropertyStatus = async (propertyId, nextStatus, actorId) => {
   return property;
 };
 
-export const addPropertyImages = async (propertyId, images, actorId) => {
+export const addPropertyImages = async (propertyId, images, actorId, actorRole) => {
   const property = await findPropertyByIdOrThrow(propertyId);
+  ensureOwnerOrAdmin(property, actorId, actorRole);
+
   const incomingImages = normalizeImages(images);
 
   const existingCover = property.images.some((image) => image.isCover);
@@ -210,7 +240,7 @@ export const addPropertyImages = async (propertyId, images, actorId) => {
   property.images.push(...incomingImages);
   ensureSingleCoverImage(property.images);
 
-  if (actorId && mongoose.isValidObjectId(actorId)) {
+  if (actorId) {
     property.updatedBy = actorId;
   }
 
@@ -218,7 +248,7 @@ export const addPropertyImages = async (propertyId, images, actorId) => {
   return property;
 };
 
-export const uploadPropertyImage = async (propertyId, payload, actorId) => {
+export const uploadPropertyImage = async (propertyId, payload, actorId, actorRole) => {
   if (!hasImageKitConfig || !imageKit) {
     throw new AppError(
       "ImageKit is not configured. Set IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY and IMAGEKIT_URL_ENDPOINT",
@@ -227,6 +257,7 @@ export const uploadPropertyImage = async (propertyId, payload, actorId) => {
   }
 
   const property = await findPropertyByIdOrThrow(propertyId);
+  ensureOwnerOrAdmin(property, actorId, actorRole);
 
   let uploadResult;
   try {
@@ -257,7 +288,7 @@ export const uploadPropertyImage = async (propertyId, payload, actorId) => {
   property.images.push(nextImage);
   ensureSingleCoverImage(property.images);
 
-  if (actorId && mongoose.isValidObjectId(actorId)) {
+  if (actorId) {
     property.updatedBy = actorId;
   }
 
@@ -265,8 +296,10 @@ export const uploadPropertyImage = async (propertyId, payload, actorId) => {
   return property;
 };
 
-export const updatePropertyImage = async (propertyId, imageId, payload, actorId) => {
+export const updatePropertyImage = async (propertyId, imageId, payload, actorId, actorRole) => {
   const property = await findPropertyByIdOrThrow(propertyId);
+  ensureOwnerOrAdmin(property, actorId, actorRole);
+
   const image = property.images.id(imageId);
 
   if (!image) {
@@ -290,7 +323,7 @@ export const updatePropertyImage = async (propertyId, imageId, payload, actorId)
 
   ensureSingleCoverImage(property.images);
 
-  if (actorId && mongoose.isValidObjectId(actorId)) {
+  if (actorId) {
     property.updatedBy = actorId;
   }
 
@@ -298,8 +331,10 @@ export const updatePropertyImage = async (propertyId, imageId, payload, actorId)
   return property;
 };
 
-export const removePropertyImage = async (propertyId, imageId, actorId) => {
+export const removePropertyImage = async (propertyId, imageId, actorId, actorRole) => {
   const property = await findPropertyByIdOrThrow(propertyId);
+  ensureOwnerOrAdmin(property, actorId, actorRole);
+
   const image = property.images.id(imageId);
 
   if (!image) {
@@ -313,7 +348,7 @@ export const removePropertyImage = async (propertyId, imageId, actorId) => {
     property.images[0].isCover = true;
   }
 
-  if (actorId && mongoose.isValidObjectId(actorId)) {
+  if (actorId) {
     property.updatedBy = actorId;
   }
 
@@ -321,8 +356,10 @@ export const removePropertyImage = async (propertyId, imageId, actorId) => {
   return property;
 };
 
-export const setCoverImage = async (propertyId, imageId, actorId) => {
+export const setCoverImage = async (propertyId, imageId, actorId, actorRole) => {
   const property = await findPropertyByIdOrThrow(propertyId);
+  ensureOwnerOrAdmin(property, actorId, actorRole);
+
   const image = property.images.id(imageId);
 
   if (!image) {
@@ -333,7 +370,7 @@ export const setCoverImage = async (propertyId, imageId, actorId) => {
     item.isCover = String(item._id) === String(image._id);
   });
 
-  if (actorId && mongoose.isValidObjectId(actorId)) {
+  if (actorId) {
     property.updatedBy = actorId;
   }
 
@@ -341,13 +378,14 @@ export const setCoverImage = async (propertyId, imageId, actorId) => {
   return property;
 };
 
-export const addFeatures = async (propertyId, features, actorId) => {
+export const addFeatures = async (propertyId, features, actorId, actorRole) => {
   const property = await findPropertyByIdOrThrow(propertyId);
-  const nextFeatures = normalizeStringArray(features);
+  ensureOwnerOrAdmin(property, actorId, actorRole);
 
+  const nextFeatures = normalizeStringArray(features);
   property.features = [...new Set([...property.features, ...nextFeatures])];
 
-  if (actorId && mongoose.isValidObjectId(actorId)) {
+  if (actorId) {
     property.updatedBy = actorId;
   }
 
@@ -355,11 +393,13 @@ export const addFeatures = async (propertyId, features, actorId) => {
   return property;
 };
 
-export const replaceFeatures = async (propertyId, features, actorId) => {
+export const replaceFeatures = async (propertyId, features, actorId, actorRole) => {
   const property = await findPropertyByIdOrThrow(propertyId);
+  ensureOwnerOrAdmin(property, actorId, actorRole);
+
   property.features = normalizeStringArray(features);
 
-  if (actorId && mongoose.isValidObjectId(actorId)) {
+  if (actorId) {
     property.updatedBy = actorId;
   }
 
@@ -367,13 +407,14 @@ export const replaceFeatures = async (propertyId, features, actorId) => {
   return property;
 };
 
-export const removeFeatures = async (propertyId, features, actorId) => {
+export const removeFeatures = async (propertyId, features, actorId, actorRole) => {
   const property = await findPropertyByIdOrThrow(propertyId);
-  const removeSet = new Set(normalizeStringArray(features));
+  ensureOwnerOrAdmin(property, actorId, actorRole);
 
+  const removeSet = new Set(normalizeStringArray(features));
   property.features = property.features.filter((feature) => !removeSet.has(feature));
 
-  if (actorId && mongoose.isValidObjectId(actorId)) {
+  if (actorId) {
     property.updatedBy = actorId;
   }
 
