@@ -1,15 +1,28 @@
-import express from "express";
+import app from "./app.js";
+import connectDB from "./config/database.js";
+import env from "./config/env.js";
+import logger from "./config/logger.js";
 
-const app = express();
-const PORT = process.env.PORT || 5000;
+const startServer = async () => {
+  await connectDB();
 
-app.get("/", (req, res) => {
-  res.json({
-    mode: process.env.NODE_ENV || "development",
-    message: "Express running Docker🚀",
+  const server = app.listen(env.port, () => {
+    logger.info("Server started", {
+      port: env.port,
+      env: env.nodeEnv,
+    });
   });
-});
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+  const shutdown = (signal) => {
+    logger.warn(`Received ${signal}. Starting graceful shutdown.`);
+    server.close(() => {
+      logger.info("HTTP server closed");
+      process.exit(0);
+    });
+  };
+
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+};
+
+startServer();
