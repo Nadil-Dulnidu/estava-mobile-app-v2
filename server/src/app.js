@@ -12,6 +12,7 @@ import favoriteRoutes from "./routes/favorite.routes.js";
 import inquiryRoutes from "./routes/inquiry.routes.js";
 import appointmentRoutes from "./routes/appointment.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
 import propertyRoutes from "./routes/property.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
 
@@ -54,6 +55,7 @@ app.use("/api/favorites", favoriteRoutes);
 app.use("/api/inquiries", inquiryRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
