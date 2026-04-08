@@ -7,6 +7,7 @@ import {
   inquiryIdParamSchema,
   inquiryUserIdParamSchema,
   listInquiriesQuerySchema,
+  replyInquirySchema,
   updateInquirySchema,
   updateInquiryStatusSchema,
 } from "../validators/inquiry.validator.js";
@@ -39,6 +40,13 @@ router.patch(
   validate(inquiryIdParamSchema, "params"),
   validate(updateInquiryStatusSchema),
   inquiryController.updateInquiryStatus
+);
+
+router.patch(
+  "/:id/reply",
+  validate(inquiryIdParamSchema, "params"),
+  validate(replyInquirySchema),
+  inquiryController.replyToInquiry
 );
 
 router

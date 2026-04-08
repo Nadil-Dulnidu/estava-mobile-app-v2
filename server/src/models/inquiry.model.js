@@ -49,6 +49,22 @@ const inquirySchema = new Schema(
       lowercase: true,
       index: true,
     },
+    replyMessage: {
+      type: String,
+      trim: true,
+      maxlength: 4000,
+      default: null,
+    },
+    repliedAt: {
+      type: Date,
+      default: null,
+    },
+    repliedBy: {
+      type: String,
+      trim: true,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,

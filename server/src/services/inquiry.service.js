@@ -254,6 +254,33 @@ export const updateInquiry = async (inquiryId, payload, actorId, actorRole) => {
 export const updateInquiryStatus = async (inquiryId, inquiryStatus, actorId, actorRole) =>
   updateInquiry(inquiryId, { inquiryStatus }, actorId, actorRole);
 
+export const replyToInquiry = async (inquiryId, replyMessage, actorId, actorRole) => {
+  ensureAuthenticatedActor(actorId);
+
+  const inquiry = await findInquiryByIdOrThrow(inquiryId);
+
+  if (!isAdminRole(actorRole) && inquiry.receiverUserId !== actorId) {
+    throw new AppError("You are not authorized to reply to this inquiry", 403);
+  }
+
+  inquiry.replyMessage = replyMessage.trim();
+  inquiry.repliedAt = new Date();
+  inquiry.repliedBy = actorId;
+  inquiry.inquiryStatus = "replied";
+
+  try {
+    await inquiry.save();
+    return inquiry;
+  } catch (error) {
+    logger.error("Inquiry reply failed", {
+      actorId,
+      inquiryId,
+      message: error.message,
+    });
+    throw error;
+  }
+};
+
 export const deleteInquiry = async (inquiryId, actorId, actorRole) => {
   ensureAuthenticatedActor(actorId);
 

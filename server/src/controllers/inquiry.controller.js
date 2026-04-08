@@ -157,6 +157,39 @@ export const updateInquiryStatus = asyncHandler(async (req, res) => {
   }
 });
 
+export const replyToInquiry = asyncHandler(async (req, res) => {
+  const actor = getActor(req);
+
+  try {
+    const inquiry = await inquiryService.replyToInquiry(
+      req.params.id,
+      req.body.replyMessage,
+      actor.id,
+      actor.role
+    );
+
+    logger.info("Inquiry replied", {
+      inquiryId: inquiry._id,
+      repliedBy: inquiry.repliedBy,
+      actorId: actor.id,
+      actorRole: actor.role,
+    });
+
+    return sendSuccess(res, {
+      message: "Inquiry replied successfully",
+      data: inquiry,
+    });
+  } catch (error) {
+    logger.error("Inquiry reply request failed", {
+      actorId: actor.id,
+      actorRole: actor.role,
+      inquiryId: req.params.id,
+      message: error.message,
+    });
+    throw error;
+  }
+});
+
 export const deleteInquiry = asyncHandler(async (req, res) => {
   const actor = getActor(req);
 

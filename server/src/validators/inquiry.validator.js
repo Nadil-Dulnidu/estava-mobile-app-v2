@@ -27,6 +27,9 @@ export const updateInquirySchema = Joi.object({
   propertyId: Joi.forbidden(),
   senderUserId: Joi.forbidden(),
   receiverUserId: Joi.forbidden(),
+  replyMessage: Joi.forbidden(),
+  repliedAt: Joi.forbidden(),
+  repliedBy: Joi.forbidden(),
 }).min(1);
 
 export const updateInquiryStatusSchema = Joi.object({
@@ -35,6 +38,10 @@ export const updateInquiryStatusSchema = Joi.object({
     .lowercase()
     .valid(...INQUIRY_STATUSES)
     .required(),
+});
+
+export const replyInquirySchema = Joi.object({
+  replyMessage: Joi.string().trim().min(1).max(4000).required(),
 });
 
 export const inquiryIdParamSchema = Joi.object({
