@@ -10,6 +10,7 @@ import notFound from "./middlewares/notFound.middleware.js";
 import requestLogger from "./middlewares/requestLogger.middleware.js";
 import favoriteRoutes from "./routes/favorite.routes.js";
 import inquiryRoutes from "./routes/inquiry.routes.js";
+import appointmentRoutes from "./routes/appointment.routes.js";
 import propertyRoutes from "./routes/property.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
 
@@ -50,6 +51,7 @@ app.use("/api/uploads", uploadRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/favorites", favoriteRoutes);
 app.use("/api/inquiries", inquiryRoutes);
+app.use("/api/appointments", appointmentRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
