@@ -8,6 +8,7 @@ import logger from "./config/logger.js";
 import errorHandler from "./middlewares/error.middleware.js";
 import notFound from "./middlewares/notFound.middleware.js";
 import requestLogger from "./middlewares/requestLogger.middleware.js";
+import favoriteRoutes from "./routes/favorite.routes.js";
 import propertyRoutes from "./routes/property.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
 
@@ -46,6 +47,7 @@ app.get("/", (_req, res) => {
 
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/properties", propertyRoutes);
+app.use("/api/favorites", favoriteRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
