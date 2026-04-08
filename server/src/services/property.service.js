@@ -2,9 +2,11 @@ import env from "../config/env.js";
 import imageKit, { hasImageKitConfig } from "../config/imagekit.js";
 import { USER_ROLES } from "../constants/auth.constants.js";
 import {
+  PROPERTY_MODERATION_STATUSES,
   PROPERTY_STATUSES,
   STATUS_TRANSITIONS,
 } from "../constants/property.constants.js";
+import { createNotificationForUser } from "./notification.service.js";
 import Property from "../models/property.model.js";
 import AppError from "../utils/AppError.js";
 import {
@@ -68,6 +70,7 @@ const buildListFilter = (query, actorId, actorRole) => {
   if (query.listingType) filter.listingType = query.listingType;
   if (query.propertyType) filter.propertyType = query.propertyType;
   if (query.status) filter.status = query.status;
+  if (query.moderationStatus) filter.moderationStatus = query.moderationStatus;
 
   if (isAdminRole(actorRole)) {
     if (query.ownerId) filter.createdBy = query.ownerId;
@@ -75,6 +78,32 @@ const buildListFilter = (query, actorId, actorRole) => {
     filter.createdBy = actorId;
   }
 
+  if (query.city) filter.city = new RegExp(`^${query.city}$`, "i");
+  if (query.search) filter.$text = { $search: query.search };
+
+  if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+    filter.price = {};
+    if (query.minPrice !== undefined) filter.price.$gte = query.minPrice;
+    if (query.maxPrice !== undefined) filter.price.$lte = query.maxPrice;
+  }
+
+  if (query.minBedrooms !== undefined || query.maxBedrooms !== undefined) {
+    filter.bedrooms = {};
+    if (query.minBedrooms !== undefined) filter.bedrooms.$gte = query.minBedrooms;
+    if (query.maxBedrooms !== undefined) filter.bedrooms.$lte = query.maxBedrooms;
+  }
+
+  return filter;
+};
+
+const buildPublicListFilter = (query) => {
+  const filter = {
+    moderationStatus: "approved",
+  };
+
+  if (query.listingType) filter.listingType = query.listingType;
+  if (query.propertyType) filter.propertyType = query.propertyType;
+  if (query.status) filter.status = query.status;
   if (query.city) filter.city = new RegExp(`^${query.city}$`, "i");
   if (query.search) filter.$text = { $search: query.search };
 
@@ -153,6 +182,35 @@ export const listProperties = async (query, actorId, actorRole) => {
   };
 };
 
+export const listPublicProperties = async (query) => {
+  const page = query.page;
+  const limit = query.limit;
+  const skip = (page - 1) * limit;
+  const sortDirection = query.sortOrder === "asc" ? 1 : -1;
+  const filter = buildPublicListFilter(query);
+
+  const sort = query.search
+    ? { score: { $meta: "textScore" }, [query.sortBy]: sortDirection }
+    : { [query.sortBy]: sortDirection };
+
+  const selection = query.search ? { score: { $meta: "textScore" } } : {};
+
+  const [items, total] = await Promise.all([
+    Property.find(filter, selection).sort(sort).skip(skip).limit(limit),
+    Property.countDocuments(filter),
+  ]);
+
+  return {
+    items,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+    },
+  };
+};
+
 export const getOwnerProperties = async (ownerId, query, actorId, actorRole) => {
   if (!ownerId) {
     throw new AppError("Owner id is required", 400);
@@ -168,6 +226,16 @@ export const getOwnerProperties = async (ownerId, query, actorId, actorRole) => 
 export const getPropertyById = async (propertyId, actorId, actorRole) => {
   const property = await findPropertyByIdOrThrow(propertyId);
   ensureOwnerOrAdmin(property, actorId, actorRole);
+  return property;
+};
+
+export const getPublicPropertyById = async (propertyId) => {
+  const property = await findPropertyByIdOrThrow(propertyId);
+
+  if (property.moderationStatus !== "approved") {
+    throw new AppError("Property not found", 404);
+  }
+
   return property;
 };
 
@@ -221,6 +289,68 @@ export const changePropertyStatus = async (propertyId, nextStatus, actorId, acto
   }
 
   await property.save();
+
+  if (actorId && property.createdBy && actorId !== property.createdBy) {
+    await createNotificationForUser(
+      {
+        title: "Property status updated",
+        message: `${property.title} is now marked as ${property.status}`,
+        type: "system",
+        status: "unread",
+        relatedEntityId: property._id,
+        relatedEntityType: "property",
+      },
+      property.createdBy
+    );
+  }
+
+  return property;
+};
+
+export const moderateProperty = async (
+  propertyId,
+  { moderationStatus, moderationNote },
+  actorId,
+  actorRole
+) => {
+  if (!isAdminRole(actorRole)) {
+    throw new AppError("You do not have permission to moderate properties", 403);
+  }
+
+  if (!PROPERTY_MODERATION_STATUSES.includes(moderationStatus)) {
+    throw new AppError("Invalid moderation status", 400);
+  }
+
+  const property = await findPropertyByIdOrThrow(propertyId);
+
+  property.moderationStatus = moderationStatus;
+  property.moderationNote = moderationNote?.trim() || null;
+  property.moderatedAt = new Date();
+  property.moderatedBy = actorId || null;
+
+  await property.save();
+
+  if (property.createdBy) {
+    const moderationMessage =
+      moderationStatus === "approved"
+        ? `${property.title} was approved`
+        : moderationStatus === "rejected"
+          ? `${property.title} was rejected`
+          : `${property.title} moderation set to pending`;
+
+    await createNotificationForUser(
+      {
+        title: "Property moderation update",
+        message: moderationMessage,
+        type: "system",
+        status: "unread",
+        relatedEntityId: property._id,
+        relatedEntityType: "property",
+      },
+      property.createdBy
+    );
+  }
+
   return property;
 };
 

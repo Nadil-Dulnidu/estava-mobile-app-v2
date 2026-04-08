@@ -27,3 +27,5 @@ export const STATUS_TRANSITIONS = {
   rented: ["available", "unavailable"],
   unavailable: ["available", "sold", "rented"],
 };
+
+export const PROPERTY_MODERATION_STATUSES = ["pending", "approved", "rejected"];

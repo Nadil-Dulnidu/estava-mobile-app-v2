@@ -2,6 +2,7 @@ import Joi from "joi";
 import {
   FURNISHED_STATUSES,
   LISTING_TYPES,
+  PROPERTY_MODERATION_STATUSES,
   PROPERTY_STATUSES,
   PROPERTY_TYPES,
 } from "../constants/property.constants.js";
@@ -83,6 +84,10 @@ export const createPropertySchema = withCoverRule(
     createdBy: Joi.forbidden(),
     updatedBy: Joi.forbidden(),
     ownerId: Joi.forbidden(),
+    moderationStatus: Joi.forbidden(),
+    moderationNote: Joi.forbidden(),
+    moderatedAt: Joi.forbidden(),
+    moderatedBy: Joi.forbidden(),
   }).custom((value, helpers) => {
     const isLand = value.propertyType === "land";
     const hasBedrooms = value.bedrooms !== undefined && value.bedrooms !== null;
@@ -104,6 +109,10 @@ export const updatePropertySchema = withCoverRule(
     createdBy: Joi.forbidden(),
     updatedBy: Joi.forbidden(),
     ownerId: Joi.forbidden(),
+    moderationStatus: Joi.forbidden(),
+    moderationNote: Joi.forbidden(),
+    moderatedAt: Joi.forbidden(),
+    moderatedBy: Joi.forbidden(),
   }).min(1)
 );
 
@@ -148,6 +157,10 @@ export const listPropertiesQuerySchema = Joi.object({
     .trim()
     .lowercase()
     .valid(...PROPERTY_STATUSES),
+  moderationStatus: Joi.string()
+    .trim()
+    .lowercase()
+    .valid(...PROPERTY_MODERATION_STATUSES),
   city: Joi.string().trim().max(80),
   ownerId: Joi.string().pattern(ownerIdRegex).messages({
     "string.pattern.base": "Invalid owner id",
@@ -178,6 +191,15 @@ export const listPropertiesQuerySchema = Joi.object({
   }
 
   return value;
+});
+
+export const moderatePropertySchema = Joi.object({
+  moderationStatus: Joi.string()
+    .trim()
+    .lowercase()
+    .valid(...PROPERTY_MODERATION_STATUSES)
+    .required(),
+  moderationNote: Joi.string().trim().max(500).allow(null, ""),
 });
 
 export const updateStatusSchema = Joi.object({

@@ -8,11 +8,13 @@ import logger from "./config/logger.js";
 import errorHandler from "./middlewares/error.middleware.js";
 import notFound from "./middlewares/notFound.middleware.js";
 import requestLogger from "./middlewares/requestLogger.middleware.js";
+import adminRoutes from "./routes/admin.routes.js";
 import favoriteRoutes from "./routes/favorite.routes.js";
 import inquiryRoutes from "./routes/inquiry.routes.js";
 import appointmentRoutes from "./routes/appointment.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import publicPropertyRoutes from "./routes/public-property.routes.js";
 import propertyRoutes from "./routes/property.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
 
@@ -50,12 +52,14 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api/uploads", uploadRoutes);
+app.use("/api/public", publicPropertyRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/favorites", favoriteRoutes);
 app.use("/api/inquiries", inquiryRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

@@ -98,26 +98,30 @@ const buildListFilter = (query, actorId, actorRole) => {
   return filter;
 };
 
+export const createNotificationForUser = async (payload, targetUserId) => {
+  ensureUserId(targetUserId);
+
+  const sanitized = sanitizeNotificationPayload(payload);
+  const notification = await Notification.create({
+    ...sanitized,
+    userId: targetUserId,
+  });
+
+  emitToUserRoom(targetUserId, "notification:new", {
+    success: true,
+    data: notification,
+  });
+
+  return notification;
+};
+
 export const createNotification = async (payload, actorId, actorRole) => {
   ensureAuthenticatedActor(actorId);
 
-  const sanitized = sanitizeNotificationPayload(payload);
   const targetUserId = actorId;
 
-  ensureUserId(targetUserId);
-
   try {
-    const notification = await Notification.create({
-      ...sanitized,
-      userId: targetUserId,
-    });
-
-    emitToUserRoom(targetUserId, "notification:new", {
-      success: true,
-      data: notification,
-    });
-
-    return notification;
+    return await createNotificationForUser(payload, targetUserId);
   } catch (error) {
     logger.error("Notification create failed", {
       actorId,

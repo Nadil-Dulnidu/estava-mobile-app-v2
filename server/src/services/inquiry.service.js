@@ -2,6 +2,7 @@ import logger from "../config/logger.js";
 import { USER_ROLES } from "../constants/auth.constants.js";
 import Inquiry from "../models/inquiry.model.js";
 import Property from "../models/property.model.js";
+import { createNotificationForUser } from "./notification.service.js";
 import AppError from "../utils/AppError.js";
 
 const userIdRegex = /^user_[a-zA-Z0-9]+$/;
@@ -157,12 +158,28 @@ export const createInquiry = async (payload, actorId, actorRole) => {
   const sanitized = sanitizeInquiryPayload(payload);
 
   try {
-    return await Inquiry.create({
+    const inquiry = await Inquiry.create({
       ...sanitized,
       propertyId: property._id,
       senderUserId: actorId,
       receiverUserId,
     });
+
+    await createNotificationForUser(
+      {
+        title: "New inquiry received",
+        message: inquiry.subject
+          ? `${inquiry.subject} - You received a new inquiry`
+          : "You received a new inquiry on your listing",
+        type: "inquiry",
+        status: "unread",
+        relatedEntityId: inquiry._id,
+        relatedEntityType: "inquiry",
+      },
+      receiverUserId
+    );
+
+    return inquiry;
   } catch (error) {
     logger.error("Inquiry create failed", {
       actorId,
@@ -240,6 +257,25 @@ export const updateInquiry = async (inquiryId, payload, actorId, actorRole) => {
 
   try {
     await inquiry.save();
+
+    if (
+      Object.hasOwn(sanitized, "inquiryStatus") &&
+      inquiry.senderUserId &&
+      inquiry.senderUserId !== actorId
+    ) {
+      await createNotificationForUser(
+        {
+          title: "Inquiry status updated",
+          message: `Your inquiry was marked as ${inquiry.inquiryStatus}`,
+          type: "inquiry",
+          status: "unread",
+          relatedEntityId: inquiry._id,
+          relatedEntityType: "inquiry",
+        },
+        inquiry.senderUserId
+      );
+    }
+
     return inquiry;
   } catch (error) {
     logger.error("Inquiry update failed", {
@@ -270,6 +306,21 @@ export const replyToInquiry = async (inquiryId, replyMessage, actorId, actorRole
 
   try {
     await inquiry.save();
+
+    if (inquiry.senderUserId && inquiry.senderUserId !== actorId) {
+      await createNotificationForUser(
+        {
+          title: "Inquiry replied",
+          message: "A property owner has replied to your inquiry",
+          type: "inquiry",
+          status: "unread",
+          relatedEntityId: inquiry._id,
+          relatedEntityType: "inquiry",
+        },
+        inquiry.senderUserId
+      );
+    }
+
     return inquiry;
   } catch (error) {
     logger.error("Inquiry reply failed", {

@@ -2,6 +2,7 @@ import logger from "../config/logger.js";
 import { USER_ROLES } from "../constants/auth.constants.js";
 import Appointment from "../models/appointment.model.js";
 import Property from "../models/property.model.js";
+import { createNotificationForUser } from "./notification.service.js";
 import AppError from "../utils/AppError.js";
 
 const userIdRegex = /^user_[a-zA-Z0-9]+$/;
@@ -208,12 +209,26 @@ export const createAppointment = async (payload, actorId) => {
   );
 
   try {
-    return await Appointment.create({
+    const appointment = await Appointment.create({
       ...sanitized,
       propertyId: property._id,
       userId: actorId,
       agentId,
     });
+
+    await createNotificationForUser(
+      {
+        title: "New appointment booking",
+        message: "A new visit appointment was booked for your property",
+        type: "appointment",
+        status: "unread",
+        relatedEntityId: appointment._id,
+        relatedEntityType: "appointment",
+      },
+      agentId
+    );
+
+    return appointment;
   } catch (error) {
     logger.error("Appointment create failed", {
       actorId,
@@ -305,6 +320,24 @@ export const updateAppointment = async (appointmentId, payload, actorId, actorRo
 
   try {
     await appointment.save();
+
+    const counterpartUserId =
+      appointment.userId === actorId ? appointment.agentId : appointment.userId;
+
+    if (counterpartUserId) {
+      await createNotificationForUser(
+        {
+          title: "Appointment updated",
+          message: `Appointment is now ${appointment.appointmentStatus}`,
+          type: "appointment",
+          status: "unread",
+          relatedEntityId: appointment._id,
+          relatedEntityType: "appointment",
+        },
+        counterpartUserId
+      );
+    }
+
     return appointment;
   } catch (error) {
     logger.error("Appointment update failed", {
@@ -330,7 +363,24 @@ export const deleteAppointment = async (appointmentId, actorId, actorRole) => {
   ensureRelevantAccess(appointment, actorId, actorRole);
 
   try {
+    const counterpartUserId =
+      appointment.userId === actorId ? appointment.agentId : appointment.userId;
+
     await appointment.deleteOne();
+
+    if (counterpartUserId) {
+      await createNotificationForUser(
+        {
+          title: "Appointment cancelled",
+          message: "An appointment related to your listing/request was cancelled",
+          type: "appointment",
+          status: "unread",
+          relatedEntityId: appointment._id,
+          relatedEntityType: "appointment",
+        },
+        counterpartUserId
+      );
+    }
   } catch (error) {
     logger.error("Appointment delete failed", {
       actorId,

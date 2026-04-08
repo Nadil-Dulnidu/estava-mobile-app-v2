@@ -37,6 +37,16 @@ export const getProperties = asyncHandler(async (req, res) => {
   });
 });
 
+export const getPublicProperties = asyncHandler(async (req, res) => {
+  const result = await propertyService.listPublicProperties(req.query);
+
+  return sendSuccess(res, {
+    message: "Public properties fetched successfully",
+    data: result.items,
+    meta: result.meta,
+  });
+});
+
 export const getPropertiesByOwner = asyncHandler(async (req, res) => {
   const actor = getActor(req);
   const result = await propertyService.getOwnerProperties(
@@ -70,6 +80,15 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 
   return sendSuccess(res, {
     message: "Property fetched successfully",
+    data: property,
+  });
+});
+
+export const getPublicPropertyById = asyncHandler(async (req, res) => {
+  const property = await propertyService.getPublicPropertyById(req.params.id);
+
+  return sendSuccess(res, {
+    message: "Public property fetched successfully",
     data: property,
   });
 });
@@ -129,6 +148,28 @@ export const changeStatus = asyncHandler(async (req, res) => {
 
   return sendSuccess(res, {
     message: "Property status updated successfully",
+    data: property,
+  });
+});
+
+export const moderateProperty = asyncHandler(async (req, res) => {
+  const actor = getActor(req);
+  const property = await propertyService.moderateProperty(
+    req.params.id,
+    req.body,
+    actor.id,
+    actor.role
+  );
+
+  logger.info("Property moderation updated", {
+    propertyId: property._id,
+    moderationStatus: property.moderationStatus,
+    actorId: actor.id,
+    actorRole: actor.role,
+  });
+
+  return sendSuccess(res, {
+    message: "Property moderation updated successfully",
     data: property,
   });
 });

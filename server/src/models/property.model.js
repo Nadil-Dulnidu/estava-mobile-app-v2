@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import {
   FURNISHED_STATUSES,
   LISTING_TYPES,
+  PROPERTY_MODERATION_STATUSES,
   PROPERTY_STATUSES,
   PROPERTY_TYPES,
 } from "../constants/property.constants.js";
@@ -91,6 +92,30 @@ const propertySchema = new Schema(
       default: "available",
       trim: true,
       lowercase: true,
+    },
+    moderationStatus: {
+      type: String,
+      enum: PROPERTY_MODERATION_STATUSES,
+      default: "pending",
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
+    moderationNote: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: null,
+    },
+    moderatedAt: {
+      type: Date,
+      default: null,
+    },
+    moderatedBy: {
+      type: String,
+      trim: true,
+      default: null,
+      index: true,
     },
     address: {
       type: String,
@@ -216,6 +241,7 @@ propertySchema.index({ city: 1 });
 propertySchema.index({ propertyType: 1 });
 propertySchema.index({ listingType: 1 });
 propertySchema.index({ status: 1 });
+propertySchema.index({ moderationStatus: 1 });
 propertySchema.index({ price: 1 });
 propertySchema.index({ createdBy: 1, createdAt: -1 });
 propertySchema.index({ createdAt: -1 });
