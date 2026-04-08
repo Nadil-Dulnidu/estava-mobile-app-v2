@@ -1,3 +1,4 @@
+import { clerkMiddleware } from "@clerk/express";
 import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
@@ -8,6 +9,7 @@ import errorHandler from "./middlewares/error.middleware.js";
 import notFound from "./middlewares/notFound.middleware.js";
 import requestLogger from "./middlewares/requestLogger.middleware.js";
 import propertyRoutes from "./routes/property.routes.js";
+import uploadRoutes from "./routes/upload.routes.js";
 
 const app = express();
 
@@ -31,6 +33,7 @@ app.use(
   })
 );
 app.use(express.json({ limit: env.jsonLimit }));
+app.use(clerkMiddleware());
 app.use(requestLogger);
 app.use("/api", apiLimiter);
 
@@ -41,6 +44,7 @@ app.get("/", (_req, res) => {
   });
 });
 
+app.use("/api/uploads", uploadRoutes);
 app.use("/api/properties", propertyRoutes);
 
 app.use(notFound);

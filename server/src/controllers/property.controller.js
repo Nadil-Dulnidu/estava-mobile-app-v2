@@ -3,21 +3,20 @@ import * as propertyService from "../services/property.service.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { sendSuccess } from "../utils/response.js";
 
-const getActorId = (req) =>
-  req.user?.id ||
-  req.user?._id ||
-  req.user?.userId ||
-  req.auth?.userId ||
-  req.headers["x-user-id"];
+const getActor = (req) => ({
+  id: req.user?.id,
+  role: req.user?.role || "USER",
+});
 
 export const createProperty = asyncHandler(async (req, res) => {
-  const actorId = getActorId(req);
-  const property = await propertyService.createProperty(req.body, actorId);
+  const actor = getActor(req);
+  const property = await propertyService.createProperty(req.body, actor.id);
 
   logger.info("Property created", {
     propertyId: property._id,
     ownerId: property.createdBy,
-    actorId,
+    actorId: actor.id,
+    actorRole: actor.role,
   });
 
   return sendSuccess(res, {
@@ -28,7 +27,8 @@ export const createProperty = asyncHandler(async (req, res) => {
 });
 
 export const getProperties = asyncHandler(async (req, res) => {
-  const result = await propertyService.listProperties(req.query);
+  const actor = getActor(req);
+  const result = await propertyService.listProperties(req.query, actor.id, actor.role);
 
   return sendSuccess(res, {
     message: "Properties fetched successfully",
@@ -38,7 +38,13 @@ export const getProperties = asyncHandler(async (req, res) => {
 });
 
 export const getPropertiesByOwner = asyncHandler(async (req, res) => {
-  const result = await propertyService.getOwnerProperties(req.params.ownerId, req.query);
+  const actor = getActor(req);
+  const result = await propertyService.getOwnerProperties(
+    req.params.ownerId,
+    req.query,
+    actor.id,
+    actor.role
+  );
 
   return sendSuccess(res, {
     message: "Owner properties fetched successfully",
@@ -48,8 +54,8 @@ export const getPropertiesByOwner = asyncHandler(async (req, res) => {
 });
 
 export const getMyProperties = asyncHandler(async (req, res) => {
-  const actorId = getActorId(req);
-  const result = await propertyService.getOwnerProperties(actorId, req.query);
+  const actor = getActor(req);
+  const result = await propertyService.getOwnerProperties(actor.id, req.query, actor.id, actor.role);
 
   return sendSuccess(res, {
     message: "My properties fetched successfully",
@@ -59,7 +65,8 @@ export const getMyProperties = asyncHandler(async (req, res) => {
 });
 
 export const getPropertyById = asyncHandler(async (req, res) => {
-  const property = await propertyService.getPropertyById(req.params.id);
+  const actor = getActor(req);
+  const property = await propertyService.getPropertyById(req.params.id, actor.id, actor.role);
 
   return sendSuccess(res, {
     message: "Property fetched successfully",
@@ -68,12 +75,18 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 });
 
 export const updateProperty = asyncHandler(async (req, res) => {
-  const actorId = getActorId(req);
-  const property = await propertyService.updateProperty(req.params.id, req.body, actorId);
+  const actor = getActor(req);
+  const property = await propertyService.updateProperty(
+    req.params.id,
+    req.body,
+    actor.id,
+    actor.role
+  );
 
   logger.info("Property updated", {
     propertyId: property._id,
-    actorId,
+    actorId: actor.id,
+    actorRole: actor.role,
   });
 
   return sendSuccess(res, {
@@ -83,10 +96,13 @@ export const updateProperty = asyncHandler(async (req, res) => {
 });
 
 export const deleteProperty = asyncHandler(async (req, res) => {
-  await propertyService.hardDeleteProperty(req.params.id);
+  const actor = getActor(req);
+  await propertyService.hardDeleteProperty(req.params.id, actor.id, actor.role);
 
   logger.info("Property hard deleted", {
     propertyId: req.params.id,
+    actorId: actor.id,
+    actorRole: actor.role,
   });
 
   return sendSuccess(res, {
@@ -96,17 +112,19 @@ export const deleteProperty = asyncHandler(async (req, res) => {
 });
 
 export const changeStatus = asyncHandler(async (req, res) => {
-  const actorId = getActorId(req);
+  const actor = getActor(req);
   const property = await propertyService.changePropertyStatus(
     req.params.id,
     req.body.status,
-    actorId
+    actor.id,
+    actor.role
   );
 
   logger.info("Property status changed", {
     propertyId: property._id,
     status: property.status,
-    actorId,
+    actorId: actor.id,
+    actorRole: actor.role,
   });
 
   return sendSuccess(res, {
@@ -116,13 +134,19 @@ export const changeStatus = asyncHandler(async (req, res) => {
 });
 
 export const addImages = asyncHandler(async (req, res) => {
-  const actorId = getActorId(req);
-  const property = await propertyService.addPropertyImages(req.params.id, req.body.images, actorId);
+  const actor = getActor(req);
+  const property = await propertyService.addPropertyImages(
+    req.params.id,
+    req.body.images,
+    actor.id,
+    actor.role
+  );
 
   logger.info("Property images added", {
     propertyId: property._id,
     count: req.body.images.length,
-    actorId,
+    actorId: actor.id,
+    actorRole: actor.role,
   });
 
   return sendSuccess(res, {
@@ -132,12 +156,18 @@ export const addImages = asyncHandler(async (req, res) => {
 });
 
 export const uploadImage = asyncHandler(async (req, res) => {
-  const actorId = getActorId(req);
-  const property = await propertyService.uploadPropertyImage(req.params.id, req.body, actorId);
+  const actor = getActor(req);
+  const property = await propertyService.uploadPropertyImage(
+    req.params.id,
+    req.body,
+    actor.id,
+    actor.role
+  );
 
   logger.info("Property image uploaded to ImageKit", {
     propertyId: property._id,
-    actorId,
+    actorId: actor.id,
+    actorRole: actor.role,
   });
 
   return sendSuccess(res, {
@@ -147,18 +177,20 @@ export const uploadImage = asyncHandler(async (req, res) => {
 });
 
 export const updateImage = asyncHandler(async (req, res) => {
-  const actorId = getActorId(req);
+  const actor = getActor(req);
   const property = await propertyService.updatePropertyImage(
     req.params.id,
     req.params.imageId,
     req.body,
-    actorId
+    actor.id,
+    actor.role
   );
 
   logger.info("Property image updated", {
     propertyId: property._id,
     imageId: req.params.imageId,
-    actorId,
+    actorId: actor.id,
+    actorRole: actor.role,
   });
 
   return sendSuccess(res, {
@@ -168,13 +200,19 @@ export const updateImage = asyncHandler(async (req, res) => {
 });
 
 export const removeImage = asyncHandler(async (req, res) => {
-  const actorId = getActorId(req);
-  const property = await propertyService.removePropertyImage(req.params.id, req.params.imageId, actorId);
+  const actor = getActor(req);
+  const property = await propertyService.removePropertyImage(
+    req.params.id,
+    req.params.imageId,
+    actor.id,
+    actor.role
+  );
 
   logger.info("Property image removed", {
     propertyId: property._id,
     imageId: req.params.imageId,
-    actorId,
+    actorId: actor.id,
+    actorRole: actor.role,
   });
 
   return sendSuccess(res, {
@@ -184,13 +222,19 @@ export const removeImage = asyncHandler(async (req, res) => {
 });
 
 export const makeCoverImage = asyncHandler(async (req, res) => {
-  const actorId = getActorId(req);
-  const property = await propertyService.setCoverImage(req.params.id, req.params.imageId, actorId);
+  const actor = getActor(req);
+  const property = await propertyService.setCoverImage(
+    req.params.id,
+    req.params.imageId,
+    actor.id,
+    actor.role
+  );
 
   logger.info("Property cover image changed", {
     propertyId: property._id,
     imageId: req.params.imageId,
-    actorId,
+    actorId: actor.id,
+    actorRole: actor.role,
   });
 
   return sendSuccess(res, {
@@ -200,12 +244,18 @@ export const makeCoverImage = asyncHandler(async (req, res) => {
 });
 
 export const addFeatures = asyncHandler(async (req, res) => {
-  const actorId = getActorId(req);
-  const property = await propertyService.addFeatures(req.params.id, req.body.features, actorId);
+  const actor = getActor(req);
+  const property = await propertyService.addFeatures(
+    req.params.id,
+    req.body.features,
+    actor.id,
+    actor.role
+  );
 
   logger.info("Property features added", {
     propertyId: property._id,
-    actorId,
+    actorId: actor.id,
+    actorRole: actor.role,
   });
 
   return sendSuccess(res, {
@@ -215,12 +265,18 @@ export const addFeatures = asyncHandler(async (req, res) => {
 });
 
 export const replaceFeatures = asyncHandler(async (req, res) => {
-  const actorId = getActorId(req);
-  const property = await propertyService.replaceFeatures(req.params.id, req.body.features, actorId);
+  const actor = getActor(req);
+  const property = await propertyService.replaceFeatures(
+    req.params.id,
+    req.body.features,
+    actor.id,
+    actor.role
+  );
 
   logger.info("Property features replaced", {
     propertyId: property._id,
-    actorId,
+    actorId: actor.id,
+    actorRole: actor.role,
   });
 
   return sendSuccess(res, {
@@ -230,12 +286,18 @@ export const replaceFeatures = asyncHandler(async (req, res) => {
 });
 
 export const removeFeatures = asyncHandler(async (req, res) => {
-  const actorId = getActorId(req);
-  const property = await propertyService.removeFeatures(req.params.id, req.body.features, actorId);
+  const actor = getActor(req);
+  const property = await propertyService.removeFeatures(
+    req.params.id,
+    req.body.features,
+    actor.id,
+    actor.role
+  );
 
   logger.info("Property features removed", {
     propertyId: property._id,
-    actorId,
+    actorId: actor.id,
+    actorRole: actor.role,
   });
 
   return sendSuccess(res, {

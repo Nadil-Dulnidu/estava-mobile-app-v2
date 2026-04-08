@@ -8,6 +8,7 @@ import {
 
 const currentYear = new Date().getFullYear();
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+const ownerIdRegex = /^user_[a-zA-Z0-9]+$/;
 
 const nonEmptyTrimmedString = Joi.string().trim().min(1);
 
@@ -81,6 +82,7 @@ export const createPropertySchema = withCoverRule(
     city: basePropertySchema.city.required(),
     createdBy: Joi.forbidden(),
     updatedBy: Joi.forbidden(),
+    ownerId: Joi.forbidden(),
   }).custom((value, helpers) => {
     const isLand = value.propertyType === "land";
     const hasBedrooms = value.bedrooms !== undefined && value.bedrooms !== null;
@@ -101,6 +103,7 @@ export const updatePropertySchema = withCoverRule(
     ...basePropertySchema,
     createdBy: Joi.forbidden(),
     updatedBy: Joi.forbidden(),
+    ownerId: Joi.forbidden(),
   }).min(1)
 );
 
@@ -111,7 +114,7 @@ export const propertyIdParamSchema = Joi.object({
 });
 
 export const ownerIdParamSchema = Joi.object({
-  ownerId: Joi.string().pattern(objectIdRegex).required().messages({
+  ownerId: Joi.string().pattern(ownerIdRegex).required().messages({
     "string.pattern.base": "Invalid owner id",
   }),
 });
@@ -146,7 +149,7 @@ export const listPropertiesQuerySchema = Joi.object({
     .lowercase()
     .valid(...PROPERTY_STATUSES),
   city: Joi.string().trim().max(80),
-  ownerId: Joi.string().pattern(objectIdRegex).messages({
+  ownerId: Joi.string().pattern(ownerIdRegex).messages({
     "string.pattern.base": "Invalid owner id",
   }),
   minPrice: Joi.number().min(0),
