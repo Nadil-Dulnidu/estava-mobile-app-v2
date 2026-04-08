@@ -2,6 +2,7 @@ import logger from "../config/logger.js";
 import { USER_ROLES } from "../constants/auth.constants.js";
 import Notification from "../models/notification.model.js";
 import AppError from "../utils/AppError.js";
+import { emitToUserRoom } from "../sockets/socket.js";
 
 const userIdRegex = /^user_[a-zA-Z0-9]+$/;
 
@@ -106,10 +107,17 @@ export const createNotification = async (payload, actorId, actorRole) => {
   ensureUserId(targetUserId);
 
   try {
-    return await Notification.create({
+    const notification = await Notification.create({
       ...sanitized,
       userId: targetUserId,
     });
+
+    emitToUserRoom(targetUserId, "notification:new", {
+      success: true,
+      data: notification,
+    });
+
+    return notification;
   } catch (error) {
     logger.error("Notification create failed", {
       actorId,
