@@ -10,7 +10,7 @@ export default function AdminTabsLayout() {
 
   if (!isLoaded) return null;
   if (!isSignedIn) return <Redirect href='/(auth)/sign-in' />;
-  if (role !== 'admin') return <Redirect href='/' />;
+  if (role !== 'admin') return <Redirect href='/(user)' />;
 
   return (
     <Tabs
@@ -18,6 +18,13 @@ export default function AdminTabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textMuted,
+        tabBarStyle: {
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.border,
+          height: 66,
+          paddingTop: 8,
+          paddingBottom: 6,
+        },
       }}>
       <Tabs.Screen
         name='index'

@@ -1,10 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/expo';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppButton } from '@/src/components/common/AppButton';
-import { AppHeader } from '@/src/components/common/AppHeader';
 import { ConfirmModal } from '@/src/components/common/ConfirmModal';
 import { ErrorState, LoadingState } from '@/src/components/common/StateViews';
 import { ScreenWrapper } from '@/src/components/common/ScreenWrapper';
@@ -17,6 +17,8 @@ import { propertyApi } from '@/src/services/api/property.api';
 import { theme } from '@/src/theme';
 import { Property, PropertyStatus } from '@/src/types/property';
 import { formatDate, formatLkr } from '@/src/utils/format';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export const PropertyDetailsScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -74,7 +76,7 @@ export const PropertyDetailsScreen = () => {
       await propertyApi.deleteProperty(id, getTokenRef.current);
       Alert.alert('Deleted', 'Property deleted permanently.');
       setShowDelete(false);
-      router.replace('/(tabs)/my-properties');
+      router.back();
     } catch (e) {
       Alert.alert('Delete failed', e instanceof Error ? e.message : 'Please try again');
     } finally {
@@ -133,14 +135,44 @@ export const PropertyDetailsScreen = () => {
     }
   };
 
-  if (loading) return <LoadingState message='Loading property details...' />;
-  if (error || !property) return <ErrorState message={error || 'Unable to load'} onRetry={load} />;
+  if (loading) {
+    return (
+      <ScreenWrapper>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name='arrow-back' size={22} color={theme.colors.textPrimary} />
+          </Pressable>
+        </View>
+        <LoadingState message='Loading property details...' />
+      </ScreenWrapper>
+    );
+  }
+
+  if (error || !property) {
+    return (
+      <ScreenWrapper>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name='arrow-back' size={22} color={theme.colors.textPrimary} />
+          </Pressable>
+        </View>
+        <ErrorState message={error || 'Unable to load'} onRetry={load} />
+      </ScreenWrapper>
+    );
+  }
 
   const canManage = isSignedIn && (isAdmin || property.createdBy === userId);
 
   return (
     <ScreenWrapper>
-      <AppHeader title='Property Details' subtitle='Listing summary and controls' />
+      {/* Custom Header */}
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name='arrow-back' size={22} color={theme.colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Property Details</Text>
+        <View style={{ width: 40 }} />
+      </View>
 
       <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.carousel}>
         {property.images.map((image) => (
@@ -154,7 +186,38 @@ export const PropertyDetailsScreen = () => {
           <StatusBadge status={property.status} />
         </View>
         <Text style={styles.price}>{formatLkr(property.price)}</Text>
-        <Text style={styles.sub}>{property.city}</Text>
+
+        <View style={styles.locationRow}>
+          <Ionicons name='location-outline' size={14} color={theme.colors.textMuted} />
+          <Text style={styles.sub}>{property.city}</Text>
+          {property.district ? <Text style={styles.sub}>, {property.district}</Text> : null}
+        </View>
+
+        <View style={styles.detailsRow}>
+          {property.bedrooms != null && (
+            <View style={styles.detailChip}>
+              <Ionicons name='bed-outline' size={14} color={theme.colors.primary} />
+              <Text style={styles.detailText}>{property.bedrooms} Beds</Text>
+            </View>
+          )}
+          {property.bathrooms != null && (
+            <View style={styles.detailChip}>
+              <Ionicons name='water-outline' size={14} color={theme.colors.primary} />
+              <Text style={styles.detailText}>{property.bathrooms} Baths</Text>
+            </View>
+          )}
+          {property.parkingSpaces != null && (
+            <View style={styles.detailChip}>
+              <Ionicons name='car-outline' size={14} color={theme.colors.primary} />
+              <Text style={styles.detailText}>{property.parkingSpaces} Parking</Text>
+            </View>
+          )}
+          <View style={styles.detailChip}>
+            <Ionicons name='pricetag-outline' size={14} color={theme.colors.primary} />
+            <Text style={styles.detailText}>{property.listingType.toUpperCase()}</Text>
+          </View>
+        </View>
+
         <Text style={styles.description}>{property.description}</Text>
         <Text style={styles.meta}>Updated: {formatDate(property.updatedAt)}</Text>
       </View>
@@ -179,11 +242,13 @@ export const PropertyDetailsScreen = () => {
           <View style={styles.actionRow}>
             <AppButton
               label='Edit'
+              icon='create-outline'
               onPress={() => router.push(`/properties/${property._id}/edit`)}
               style={styles.actionBtn}
             />
             <AppButton
               label='Delete'
+              icon='trash-outline'
               variant='danger'
               onPress={() => setShowDelete(true)}
               style={styles.actionBtn}
@@ -195,11 +260,13 @@ export const PropertyDetailsScreen = () => {
           <View style={styles.actionRow}>
             <AppButton
               label='Book Appointment'
+              icon='calendar-outline'
               onPress={() => (isSignedIn ? setShowAppointmentForm((prev) => !prev) : router.push('/(auth)/sign-in'))}
               style={styles.actionBtn}
             />
             <AppButton
               label='Send Inquiry'
+              icon='chatbox-outline'
               variant='secondary'
               onPress={() => (isSignedIn ? setShowInquiryForm((prev) => !prev) : router.push('/(auth)/sign-in'))}
               style={styles.actionBtn}
@@ -216,7 +283,7 @@ export const PropertyDetailsScreen = () => {
                 value={appointmentDateTime}
                 onChangeText={setAppointmentDateTime}
               />
-              <AppButton label='Confirm Booking' onPress={onBookAppointment} />
+              <AppButton label='Confirm Booking' icon='checkmark-outline' onPress={onBookAppointment} />
             </View>
           ) : null}
 
@@ -231,7 +298,7 @@ export const PropertyDetailsScreen = () => {
                 value={inquiryMessage}
                 onChangeText={setInquiryMessage}
               />
-              <AppButton label='Send Inquiry' onPress={onSendInquiry} />
+              <AppButton label='Send Inquiry' icon='send-outline' onPress={onSendInquiry} />
             </View>
           ) : null}
         </>
@@ -251,16 +318,38 @@ export const PropertyDetailsScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.md,
+    paddingTop: 4,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    ...theme.typography.h3,
+    color: theme.colors.accentDark,
+  },
   carousel: {
     borderRadius: theme.radius.lg,
     overflow: 'hidden',
     marginBottom: theme.spacing.md,
   },
   carouselImage: {
-    width: 320,
+    width: SCREEN_WIDTH - 40,
     height: 220,
     backgroundColor: '#E2E8F0',
     marginRight: 8,
+    borderRadius: theme.radius.lg,
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -270,6 +359,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
     gap: 6,
+    ...theme.shadow.soft,
   },
   rowBetween: {
     flexDirection: 'row',
@@ -283,16 +373,42 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
   },
   price: {
-    ...theme.typography.h3,
+    ...theme.typography.h2,
     color: theme.colors.primary,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   sub: {
     ...theme.typography.body,
     color: theme.colors.textSecondary,
   },
+  detailsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.xs,
+    marginTop: 4,
+  },
+  detailChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: theme.colors.chipBg,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: theme.radius.full,
+  },
+  detailText: {
+    ...theme.typography.caption,
+    color: theme.colors.primary,
+    fontWeight: '600',
+  },
   description: {
     ...theme.typography.body,
     color: theme.colors.textSecondary,
+    marginTop: 4,
   },
   meta: {
     ...theme.typography.caption,
@@ -313,6 +429,7 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
   },
   actionBtn: {
     flex: 1,
@@ -321,7 +438,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.background,
     height: 48,
     paddingHorizontal: theme.spacing.sm,
     color: theme.colors.textPrimary,

@@ -37,9 +37,9 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [banner, setBanner] = useState<AppNotification | null>(null);
 
-  useEffect(() => {
-    getTokenRef.current = getToken;
-  }, [getToken]);
+  // Inline ref update — safe to do during render, avoids the useEffect
+  // firing on every Clerk getToken reference cycle
+  getTokenRef.current = getToken;
 
   const unreadCount = useMemo(
     () => notifications.filter((item) => item.status === 'unread').length,
@@ -56,7 +56,8 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       const response = await notificationApi.getNotifications({ page: 1, limit: 50 }, getTokenRef.current);
       setNotifications(response.data || []);
     } catch {
-      setNotifications((prev) => prev);
+      // Don't call setNotifications on error — it would create a
+      // new array reference every catch, triggering another render
     }
   }, [isSignedIn]);
 
@@ -66,6 +67,10 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       prev.map((item) => (item._id === id ? { ...item, status: 'read' } : item))
     );
   }, []);
+
+  // Stable dismissBanner — extracted as useCallback so its reference
+  // doesn't change on every useMemo recalc, preventing render loops in consumers
+  const dismissBanner = useCallback(() => setBanner(null), []);
 
   useEffect(() => {
     if (isSignedIn) {
@@ -125,11 +130,11 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       unreadCount,
       isConnected,
       banner,
-      dismissBanner: () => setBanner(null),
+      dismissBanner,
       refresh,
       markAsRead,
     }),
-    [notifications, unreadCount, isConnected, banner, refresh, markAsRead]
+    [notifications, unreadCount, isConnected, banner, dismissBanner, refresh, markAsRead]
   );
 
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;

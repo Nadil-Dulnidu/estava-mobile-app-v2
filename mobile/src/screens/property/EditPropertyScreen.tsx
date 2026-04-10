@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/expo';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ErrorState, LoadingState } from '@/src/components/common/StateViews';
 import { ScreenWrapper } from '@/src/components/common/ScreenWrapper';
 import {
@@ -12,6 +13,7 @@ import {
 import { propertyApi } from '@/src/services/api/property.api';
 import { uploadApi } from '@/src/services/api/upload.api';
 import { mapPropertyToForm } from '@/src/utils/propertyForm';
+import { theme } from '@/src/theme';
 
 export const EditPropertyScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -46,11 +48,47 @@ export const EditPropertyScreen = () => {
     load();
   }, [load]);
 
-  if (loading) return <LoadingState message='Loading property...' />;
-  if (error || !initialValues) return <ErrorState message={error || 'Unable to load'} onRetry={load} />;
+  if (loading) {
+    return (
+      <ScreenWrapper>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name='arrow-back' size={22} color={theme.colors.textPrimary} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Edit Property</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <LoadingState message='Loading property...' />
+      </ScreenWrapper>
+    );
+  }
+
+  if (error || !initialValues) {
+    return (
+      <ScreenWrapper>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name='arrow-back' size={22} color={theme.colors.textPrimary} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Edit Property</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <ErrorState message={error || 'Unable to load'} onRetry={load} />
+      </ScreenWrapper>
+    );
+  }
 
   return (
     <ScreenWrapper>
+      {/* Custom Header */}
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name='arrow-back' size={22} color={theme.colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Edit Property</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <PropertyFormScreen
         title='Edit Property'
         submitLabel='Save Changes'
@@ -72,3 +110,27 @@ export const EditPropertyScreen = () => {
     </ScreenWrapper>
   );
 };
+
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.md,
+    paddingTop: 4,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    ...theme.typography.h3,
+    color: theme.colors.accentDark,
+  },
+});

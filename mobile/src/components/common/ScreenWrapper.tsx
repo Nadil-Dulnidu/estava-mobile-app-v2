@@ -42,9 +42,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
   },
   scroll: {
     padding: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xxl,
   },
 });

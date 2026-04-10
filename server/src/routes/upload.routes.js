@@ -19,7 +19,23 @@ router.get(
       );
     }
 
-    const authParams = imageKit.getAuthenticationParameters();
+    if (env.imageKitPublicKey.startsWith("http")) {
+      throw new AppError(
+        "IMAGEKIT_PUBLIC_KEY appears invalid. It should be the ImageKit public key (e.g. public_xxx), not a URL.",
+        500
+      );
+    }
+
+    const authParams =
+      typeof imageKit?.helper?.getAuthenticationParameters === "function"
+        ? imageKit.helper.getAuthenticationParameters()
+        : typeof imageKit?.getAuthenticationParameters === "function"
+          ? imageKit.getAuthenticationParameters()
+          : null;
+
+    if (!authParams) {
+      throw new AppError("ImageKit SDK does not expose authentication parameter generation", 500);
+    }
 
     return sendSuccess(res, {
       message: "ImageKit authentication parameters fetched successfully",

@@ -61,16 +61,20 @@ export const PropertyFormScreen = ({
   const [existingImages, setExistingImages] = useState<PropertyImage[]>(initialValues.images || []);
   const [localImages, setLocalImages] = useState<LocalPickedImage[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const isLand = values.propertyType === 'land';
 
   const sectionTitleStyle = useMemo(() => [styles.sectionTitle], []);
 
   const setValue = <K extends keyof PropertyFormState>(field: K, next: PropertyFormState[K]) => {
+    setSubmitError(null);
     setValues((prev) => ({ ...prev, [field]: next }));
   };
 
   const handleSubmit = async () => {
+    setSubmitError(null);
     const validationErrors = validatePropertyForm(values as unknown as Record<string, unknown>);
 
     const combinedImages = ensureOneCoverImage([...existingImages, ...localImages]);
@@ -82,6 +86,7 @@ export const PropertyFormScreen = ({
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
+      setSubmitError('Please fix the highlighted form fields and try again.');
       Alert.alert('Validation error', 'Please fix the highlighted form fields.');
       return;
     }
@@ -106,11 +111,20 @@ export const PropertyFormScreen = ({
       normalizedValues.bathrooms = '';
     }
 
-    await onSubmit({
-      formValues: normalizedValues,
-      existingImages: ensureOneCoverImage(existingImages),
-      localImages: ensureOneCoverImage(localImages),
-    });
+    try {
+      setSubmitting(true);
+      await onSubmit({
+        formValues: normalizedValues,
+        existingImages: ensureOneCoverImage(existingImages),
+        localImages: ensureOneCoverImage(localImages),
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to save property. Please try again.';
+      setSubmitError(message);
+      Alert.alert('Submission failed', message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -254,15 +268,24 @@ export const PropertyFormScreen = ({
       <ImagePickerUploader
         existingImages={existingImages}
         localImages={localImages}
-        onExistingImagesChange={setExistingImages}
-        onLocalImagesChange={setLocalImages}
+        onExistingImagesChange={(next) => {
+          setSubmitError(null);
+          setExistingImages(next);
+        }}
+        onLocalImagesChange={(next) => {
+          setSubmitError(null);
+          setLocalImages(next);
+        }}
       />
       {errors.images ? <Text style={styles.errorText}>{errors.images}</Text> : null}
+      {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
 
       <AppButton
         label={submitLabel}
-        onPress={handleSubmit}
-        loading={loading}
+        onPress={() => {
+          void handleSubmit();
+        }}
+        loading={loading || submitting}
         style={styles.submitButton}
       />
     </View>

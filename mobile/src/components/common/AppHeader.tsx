@@ -11,7 +11,10 @@ interface AppHeaderProps {
 export const AppHeader = ({ title, subtitle, right }: AppHeaderProps) => (
   <View style={styles.row}>
     <View style={styles.left}>
-      <Text style={styles.title}>{title}</Text>
+      <View style={styles.titleRow}>
+        <View style={styles.accentDot} />
+        <Text style={styles.title}>{title}</Text>
+      </View>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </View>
     {right ? <View>{right}</View> : null}
@@ -36,12 +39,23 @@ const styles = StyleSheet.create({
   left: {
     flex: 1,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  accentDot: {
+    width: 8,
+    height: 8,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.primary,
+  },
   title: {
     ...theme.typography.h2,
-    color: theme.colors.textPrimary,
+    color: theme.colors.accentDark,
   },
   subtitle: {
-    marginTop: 2,
+    marginTop: 4,
     ...theme.typography.body,
     color: theme.colors.textSecondary,
   },
@@ -54,6 +68,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...theme.typography.h3,
-    color: theme.colors.textPrimary,
+    color: theme.colors.accentDark,
   },
 });

@@ -1,9 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth, useUser } from '@clerk/expo';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, View, Text } from 'react-native';
 import { AppButton } from '@/src/components/common/AppButton';
-import { AppHeader } from '@/src/components/common/AppHeader';
 import { ConfirmModal } from '@/src/components/common/ConfirmModal';
 import { EmptyState, ErrorState, LoadingState } from '@/src/components/common/StateViews';
 import { SearchBar } from '@/src/components/common/SearchBar';
@@ -81,13 +81,48 @@ export const MyPropertiesScreen = () => {
   return (
     <ScreenWrapper scroll={false}>
       <View style={styles.container}>
-        <AppHeader
-          title='My Properties'
-          subtitle={user?.firstName ? `${user.firstName}'s listings` : 'Manage owned listings'}
-          right={
-            <AppButton label='Add' onPress={() => router.push('/properties/add')} style={styles.addBtn} />
-          }
-        />
+        {/* Custom Header */}
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name='arrow-back' size={22} color={theme.colors.textPrimary} />
+          </Pressable>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>My Listings</Text>
+            <Text style={styles.headerSubtitle}>
+              {user?.firstName ? `${user.firstName}'s listings` : 'Manage owned listings'}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => router.push('/properties/add')}
+            style={styles.addIconBtn}
+          >
+            <Ionicons name='add' size={22} color={theme.colors.primaryContrast} />
+          </Pressable>
+        </View>
+
+        {/* Stats */}
+        {!loading && !error && items.length > 0 && (
+          <View style={styles.statsRow}>
+            <View style={[styles.statChip, { backgroundColor: theme.colors.chipBg }]}>
+              <Text style={[styles.statValue, { color: theme.colors.primary }]}>
+                {items.length}
+              </Text>
+              <Text style={styles.statLabel}>Total</Text>
+            </View>
+            <View style={[styles.statChip, { backgroundColor: '#E8F5E9' }]}>
+              <Text style={[styles.statValue, { color: theme.colors.success }]}>
+                {items.filter((i) => i.status === 'available').length}
+              </Text>
+              <Text style={styles.statLabel}>Available</Text>
+            </View>
+            <View style={[styles.statChip, { backgroundColor: '#FFF8E1' }]}>
+              <Text style={[styles.statValue, { color: theme.colors.warning }]}>
+                {items.filter((i) => i.status === 'sold' || i.status === 'rented').length}
+              </Text>
+              <Text style={styles.statLabel}>Sold/Rented</Text>
+            </View>
+          </View>
+        )}
 
         <SearchBar value={query} onChangeText={setQuery} placeholder='Search your properties' />
         <AppButton label='Search' onPress={() => load()} variant='secondary' />
@@ -137,9 +172,60 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: theme.spacing.sm,
   },
-  addBtn: {
-    width: 76,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+  },
+  backBtn: {
+    width: 40,
     height: 40,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerTitle: {
+    ...theme.typography.h3,
+    color: theme.colors.accentDark,
+  },
+  headerSubtitle: {
+    ...theme.typography.caption,
+    color: theme.colors.textMuted,
+  },
+  addIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadow.soft,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+  },
+  statChip: {
+    flex: 1,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xs,
+    borderRadius: theme.radius.md,
+    alignItems: 'center',
+  },
+  statValue: {
+    ...theme.typography.h3,
+  },
+  statLabel: {
+    ...theme.typography.caption,
+    color: theme.colors.textMuted,
   },
   list: {
     paddingBottom: theme.spacing.xxl,

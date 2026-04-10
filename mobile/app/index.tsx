@@ -8,7 +8,6 @@ export default function IndexScreen() {
 
   if (role === 'guest') return <Redirect href='/(public)' />;
   if (role === 'admin') return <Redirect href='/(admin)' />;
-  if (role === 'owner') return <Redirect href='/(owner)' />;
 
   return <Redirect href='/(user)' />;
 }

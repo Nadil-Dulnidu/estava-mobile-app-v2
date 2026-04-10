@@ -1,5 +1,5 @@
 import { MyPropertiesScreen } from '@/src/screens/property/MyPropertiesScreen';
 
-export default function OwnerPropertiesRoute() {
+export default function MyListingsRoute() {
   return <MyPropertiesScreen />;
 }

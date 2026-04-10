@@ -1,5 +1,5 @@
 import { OwnerAppointmentsScreen } from '@/src/screens/owner/OwnerAppointmentsScreen';
 
-export default function OwnerAppointmentsRoute() {
+export default function MyAppointmentsRoute() {
   return <OwnerAppointmentsScreen />;
 }

@@ -30,9 +30,14 @@ export const PropertyCard = ({ property, onPress, onEdit, onDelete }: PropertyCa
       </View>
 
       <Text style={styles.price}>{formatLkr(property.price)}</Text>
-      <Text style={styles.meta}>
-        {property.listingType.toUpperCase()} • {property.propertyType} • {property.bedrooms ?? '-'} bed
-      </Text>
+      <View style={styles.metaRow}>
+        <Ionicons name='pricetag-outline' size={14} color={theme.colors.textMuted} />
+        <Text style={styles.meta}>{property.listingType.toUpperCase()}</Text>
+        <Ionicons name='business-outline' size={14} color={theme.colors.textMuted} />
+        <Text style={styles.meta}>{property.propertyType}</Text>
+        <Ionicons name='bed-outline' size={14} color={theme.colors.textMuted} />
+        <Text style={styles.meta}>{property.bedrooms ?? '-'} bed</Text>
+      </View>
 
       {(onEdit || onDelete) ? (
         <View style={styles.actions}>
@@ -91,6 +96,12 @@ const styles = StyleSheet.create({
   price: {
     ...theme.typography.bodyStrong,
     color: theme.colors.primary,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
   },
   meta: {
     ...theme.typography.caption,

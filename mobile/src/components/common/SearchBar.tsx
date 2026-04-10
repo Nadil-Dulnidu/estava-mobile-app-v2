@@ -10,7 +10,9 @@ interface SearchBarProps {
 
 export const SearchBar = ({ value, onChangeText, placeholder = 'Search properties...' }: SearchBarProps) => (
   <View style={styles.wrapper}>
-    <Ionicons name='search' size={18} color={theme.colors.textMuted} />
+    <View style={styles.iconWrap}>
+      <Ionicons name='search' size={16} color={theme.colors.accentDark} />
+    </View>
     <TextInput
       value={value}
       onChangeText={onChangeText}
@@ -28,13 +30,23 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: theme.radius.full,
-    paddingHorizontal: theme.spacing.md,
-    height: 48,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.sm,
+    height: 50,
     gap: theme.spacing.xs,
+    ...theme.shadow.soft,
+  },
+  iconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: theme.radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.chipBg,
   },
   input: {
     flex: 1,
+    ...theme.typography.body,
     color: theme.colors.textPrimary,
   },
 });
