@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ErrorState, LoadingState } from '@/src/components/common/StateViews';
 import { ScreenWrapper } from '@/src/components/common/ScreenWrapper';
+import { useResponsive } from '@/src/hooks/useResponsive';
 import { propertyApi } from '@/src/services/api/property.api';
 import { Review, reviewApi } from '@/src/services/api/review.api';
 import { theme } from '@/src/theme';
@@ -15,6 +16,7 @@ import { getStatusOptionsForListingType } from '@/src/utils/propertyRules';
 export const AdminPropertiesScreen = () => {
   const { getToken } = useAuth();
   const getTokenRef = useRef(getToken);
+  const { isPhoneSm } = useResponsive();
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -315,18 +317,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
-    paddingTop: 4,
+    marginBottom: theme.spacing.sm,
   },
   pageTitle: {
-    ...theme.typography.h2,
+    fontSize: 20,
+    fontWeight: '700',
+    fontFamily: 'Poppins-Regular',
     color: theme.colors.accentDark,
+    lineHeight: 26,
   },
   pageSub: {
-    ...theme.typography.body,
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    fontWeight: '400',
     color: theme.colors.textMuted,
-    marginTop: 2,
-    maxWidth: 200,
+    marginTop: 1,
+    maxWidth: 180,
   },
   countBadge: {
     backgroundColor: theme.colors.chipBg,
@@ -349,7 +355,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
     paddingHorizontal: theme.spacing.sm,
-    height: 48,
+    height: 44,
     gap: theme.spacing.xs,
     marginBottom: theme.spacing.sm,
     ...theme.shadow.soft,
@@ -357,7 +363,9 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     color: theme.colors.textPrimary,
-    ...theme.typography.body,
+    fontSize: 13,
+    fontFamily: 'Poppins-Regular',
+    fontWeight: '400',
     height: '100%',
   },
   listContent: {
@@ -385,10 +393,11 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   cardImage: {
-    width: 88,
-    height: 88,
+    width: 80,
+    height: 80,
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.chipBg,
+    flexShrink: 0,
   },
   cardMain: {
     flex: 1,
