@@ -1,5 +1,6 @@
 import { authHeader, apiClient } from '@/src/services/api/client';
-import { ApiListResponse, ApiSingleResponse, Property, PropertyFilters, PropertyStatus } from '@/src/types/property';
+import { ApiListResponse, ApiSingleResponse } from '@/src/types/common';
+import { Property, PropertyFilters, PropertyStatus } from '@/src/types/property';
 
 type GetTokenFn = (options?: { template?: string }) => Promise<string | null>;
 
@@ -10,8 +11,11 @@ const normalizeListResponse = <T>(payload: ApiListResponse<T>): ApiListResponse<
 
 export const propertyApi = {
   async getPublicProperties(filters: PropertyFilters = {}) {
+    const params = Object.fromEntries(
+      Object.entries(filters).filter(([, value]) => value !== '' && value !== undefined && value !== null)
+    );
     const response = await apiClient.get<ApiListResponse<Property>>('/api/public/properties', {
-      params: filters,
+      params,
     });
     return normalizeListResponse(response.data);
   },

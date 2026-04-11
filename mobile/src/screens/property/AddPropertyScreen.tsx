@@ -10,6 +10,7 @@ import {
 import { uploadApi } from '@/src/services/api/upload.api';
 import { propertyApi } from '@/src/services/api/property.api';
 import { ScreenWrapper } from '@/src/components/common/ScreenWrapper';
+import { ensureOneCoverImage } from '@/src/utils/propertyForm';
 import { theme } from '@/src/theme';
 
 export const AddPropertyScreen = () => {
@@ -33,9 +34,10 @@ export const AddPropertyScreen = () => {
         initialValues={defaultPropertyFormValues}
         onSubmit={async ({ formValues, existingImages, localImages }) => {
           const uploaded = await uploadApi.uploadImages(localImages, getToken);
+          const mergedImages = ensureOneCoverImage([...existingImages, ...uploaded]);
           const payload = mapFormStateToPayload({
             ...formValues,
-            images: [...existingImages, ...uploaded],
+            images: mergedImages,
           });
 
           await propertyApi.createProperty(payload, getToken);

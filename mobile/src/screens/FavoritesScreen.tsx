@@ -12,6 +12,7 @@ import { favoriteApi, Favorite } from '@/src/services/api/favorite.api';
 import { theme } from '@/src/theme';
 import { formatLkr, getCoverImage } from '@/src/utils/format';
 import { Property } from '@/src/types/property';
+import { isCommercialPropertyType, isLandPropertyType, isResidentialPropertyType } from '@/src/utils/propertyRules';
 
 export const FavoritesScreen = () => {
   const { isSignedIn } = useAppSession();
@@ -115,7 +116,7 @@ export const FavoritesScreen = () => {
                 onPress={() => router.push(`/properties/${property._id}`)}
               >
                 <Image
-                  source={{ uri: coverUrl }}
+                  source={coverUrl ? { uri: coverUrl } : undefined}
                   style={styles.cardImage}
                   contentFit='cover'
                   transition={200}
@@ -131,16 +132,28 @@ export const FavoritesScreen = () => {
                     <View style={styles.chip}>
                       <Text style={styles.chipText}>{property.listingType.toUpperCase()}</Text>
                     </View>
-                    {property.bedrooms != null && (
+                    {isResidentialPropertyType(property.propertyType) && property.bedrooms != null && (
                       <View style={styles.chip}>
                         <Ionicons name='bed-outline' size={10} color={theme.colors.primary} />
                         <Text style={styles.chipText}>{property.bedrooms} bd</Text>
                       </View>
                     )}
-                    {property.bathrooms != null && (
+                    {isResidentialPropertyType(property.propertyType) && property.bathrooms != null && (
                       <View style={styles.chip}>
                         <Ionicons name='water-outline' size={10} color={theme.colors.primary} />
                         <Text style={styles.chipText}>{property.bathrooms} ba</Text>
+                      </View>
+                    )}
+                    {isCommercialPropertyType(property.propertyType) && property.floorArea != null && (
+                      <View style={styles.chip}>
+                        <Ionicons name='resize-outline' size={10} color={theme.colors.primary} />
+                        <Text style={styles.chipText}>Floor {property.floorArea}</Text>
+                      </View>
+                    )}
+                    {isLandPropertyType(property.propertyType) && property.landSize != null && (
+                      <View style={styles.chip}>
+                        <Ionicons name='map-outline' size={10} color={theme.colors.primary} />
+                        <Text style={styles.chipText}>Land {property.landSize}</Text>
                       </View>
                     )}
                   </View>

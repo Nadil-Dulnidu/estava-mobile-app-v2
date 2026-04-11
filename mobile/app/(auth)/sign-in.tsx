@@ -9,6 +9,21 @@ import { theme } from "@/src/theme";
 
 WebBrowser.maybeCompleteAuthSession();
 
+const mapAuthErrorMessage = (input: unknown, fallback: string) => {
+  const message =
+    input instanceof Error
+      ? input.message
+      : typeof input === "string"
+        ? input
+        : fallback;
+
+  if (/captcha|turnstile|600010/i.test(message)) {
+    return "CAPTCHA could not load. Disable ad blockers/shields, allow third-party cookies, and try again.";
+  }
+
+  return message || fallback;
+};
+
 export default function SignInScreen() {
   const { signIn, errors, fetchStatus } = useSignIn();
   const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
@@ -107,7 +122,7 @@ export default function SignInScreen() {
         router.replace("/");
       }
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Google sign-in failed.");
+      setFormError(mapAuthErrorMessage(error, "Google sign-in failed."));
     }
   };
 
@@ -240,7 +255,7 @@ export default function SignInScreen() {
 
                 {/* Link to sign up */}
                 <View style={styles.linkRow}>
-                  <Text style={styles.linkText}>Don't have an account?</Text>
+                  <Text style={styles.linkText}>Don&apos;t have an account?</Text>
                   <Link href="/(auth)/sign-up" style={styles.linkAction}>
                     Sign up
                   </Link>
@@ -322,6 +337,9 @@ export default function SignInScreen() {
                 </View>
               </>
             )}
+
+            {/* Required for Clerk bot protection (web custom flows) */}
+            <View nativeID="clerk-captcha" style={styles.captchaContainer} />
           </View>
 
           {/* Browse as guest */}
@@ -544,5 +562,8 @@ const styles = StyleSheet.create({
   guestLinkText: {
     ...theme.typography.bodyStrong,
     color: theme.colors.primary,
+  },
+  captchaContainer: {
+    minHeight: 64,
   },
 });

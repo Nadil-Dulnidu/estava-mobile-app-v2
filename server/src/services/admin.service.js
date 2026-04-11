@@ -1,34 +1,18 @@
 import Appointment from "../models/appointment.model.js";
 import Inquiry from "../models/inquiry.model.js";
 import Property from "../models/property.model.js";
-
-const buildModerationFilter = (query) => {
-  const filter = {};
-
-  if (query.moderationStatus) filter.moderationStatus = query.moderationStatus;
-  if (query.propertyType) filter.propertyType = query.propertyType;
-  if (query.listingType) filter.listingType = query.listingType;
-  if (query.search) filter.$text = { $search: query.search };
-
-  return filter;
-};
+import Review from "../models/review.model.js";
 
 export const getDashboardSummary = async (query) => {
   const sinceDate = new Date(Date.now() - query.days * 24 * 60 * 60 * 1000);
 
   const [
     totalProperties,
-    pendingModeration,
-    approvedProperties,
-    rejectedProperties,
     recentProperties,
     totalAppointments,
     totalInquiries,
   ] = await Promise.all([
     Property.countDocuments({}),
-    Property.countDocuments({ moderationStatus: "pending" }),
-    Property.countDocuments({ moderationStatus: "approved" }),
-    Property.countDocuments({ moderationStatus: "rejected" }),
     Property.countDocuments({ createdAt: { $gte: sinceDate } }),
     Appointment.countDocuments({}),
     Inquiry.countDocuments({}),
@@ -36,38 +20,121 @@ export const getDashboardSummary = async (query) => {
 
   return {
     totalProperties,
-    pendingModeration,
-    approvedProperties,
-    rejectedProperties,
     recentProperties,
     totalAppointments,
     totalInquiries,
   };
 };
 
-export const listModerationProperties = async (query) => {
-  const page = query.page;
-  const limit = query.limit;
-  const skip = (page - 1) * limit;
-  const sortDirection = query.sortOrder === "asc" ? 1 : -1;
-  const sort = query.search
-    ? { score: { $meta: "textScore" }, [query.sortBy]: sortDirection }
-    : { [query.sortBy]: sortDirection };
-  const selection = query.search ? { score: { $meta: "textScore" } } : {};
-  const filter = buildModerationFilter(query);
+const formatDateKey = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
 
-  const [items, total] = await Promise.all([
-    Property.find(filter, selection).sort(sort).skip(skip).limit(limit),
-    Property.countDocuments(filter),
+const buildDailyRange = (days) => {
+  const values = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let index = days - 1; index >= 0; index -= 1) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - index);
+    values.push(formatDateKey(date));
+  }
+
+  return values;
+};
+
+export const getDashboardAnalytics = async (query) => {
+  const sinceDate = new Date();
+  sinceDate.setHours(0, 0, 0, 0);
+  sinceDate.setDate(sinceDate.getDate() - (query.days - 1));
+
+  const [dailyRaw, byTypeRaw, byStatusRaw, reviewRaw, totalReviews] = await Promise.all([
+    Property.aggregate([
+      { $match: { createdAt: { $gte: sinceDate } } },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+          },
+          count: { $sum: 1 },
+          saleCount: {
+            $sum: { $cond: [{ $eq: ["$listingType", "sale"] }, 1, 0] },
+          },
+          rentCount: {
+            $sum: { $cond: [{ $eq: ["$listingType", "rent"] }, 1, 0] },
+          },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]),
+    Property.aggregate([
+      {
+        $group: {
+          _id: "$propertyType",
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { count: -1 } },
+    ]),
+    Property.aggregate([
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { count: -1 } },
+    ]),
+    Review.aggregate([
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: "$rating" },
+          lowRatingCount: {
+            $sum: {
+              $cond: [{ $lte: ["$rating", 2] }, 1, 0],
+            },
+          },
+        },
+      },
+    ]),
+    Review.countDocuments({}),
   ]);
 
+  const dailyMap = new Map(dailyRaw.map((item) => [item._id, item]));
+  const dailyListings = buildDailyRange(query.days).map((dateKey) => {
+    const source = dailyMap.get(dateKey);
+    return {
+      date: dateKey,
+      count: source?.count || 0,
+      saleCount: source?.saleCount || 0,
+      rentCount: source?.rentCount || 0,
+    };
+  });
+
+  const byType = byTypeRaw.map((item) => ({
+    label: item._id || "unknown",
+    count: item.count,
+  }));
+
+  const byStatus = byStatusRaw.map((item) => ({
+    label: item._id || "unknown",
+    count: item.count,
+  }));
+
+  const ratingSummary = reviewRaw[0] || { averageRating: 0, lowRatingCount: 0 };
+
   return {
-    items,
-    meta: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit) || 1,
+    days: query.days,
+    dailyListings,
+    byType,
+    byStatus,
+    reviewMetrics: {
+      totalReviews,
+      averageRating: Number((ratingSummary.averageRating || 0).toFixed(2)),
+      lowRatingCount: ratingSummary.lowRatingCount || 0,
     },
   };
 };

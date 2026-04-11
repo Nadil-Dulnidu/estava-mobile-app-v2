@@ -1,15 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "@clerk/expo";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Image } from "expo-image";
 import { EmptyState, ErrorState, LoadingState } from "@/src/components/common/StateViews";
 import { ScreenWrapper } from "@/src/components/common/ScreenWrapper";
 import { SORT_OPTIONS, STATUS_OPTIONS } from "@/src/constants/property";
+import { useAppSession } from "@/src/context/AppSessionContext";
+import { favoriteApi, Favorite } from "@/src/services/api/favorite.api";
 import { propertyApi } from "@/src/services/api/property.api";
 import { theme } from "@/src/theme";
 import { Property, PropertyStatus } from "@/src/types/property";
 import { formatLkr, getCoverImage } from "@/src/utils/format";
+import { isCommercialPropertyType, isLandPropertyType, isResidentialPropertyType } from "@/src/utils/propertyRules";
 
 const LISTING_TYPES = [
   { label: "All", value: "" },
@@ -31,20 +35,55 @@ const FilterPill = ({ label, active, onPress }: { label: string; active: boolean
   </Pressable>
 );
 
-const PropertyListCard = ({ property, onPress }: { property: Property; onPress: () => void }) => {
+const getFavoritePropertyId = (favorite: Favorite) =>
+  typeof favorite.propertyId === "string" ? favorite.propertyId : favorite.propertyId?._id;
+
+const PropertyListCard = ({
+  property,
+  onPress,
+  isFavorite,
+  onToggleFavorite,
+  favoriteBusy,
+}: {
+  property: Property;
+  onPress: () => void;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  favoriteBusy: boolean;
+}) => {
   const coverUrl = getCoverImage(property);
   return (
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={onPress}>
-      <Image source={{ uri: coverUrl }} style={styles.cardImage} contentFit="cover" transition={200} />
+      <Image
+        source={coverUrl ? { uri: coverUrl } : undefined}
+        style={styles.cardImage}
+        contentFit="cover"
+        transition={200}
+      />
       <View style={styles.cardBody}>
         <View style={styles.cardTopRow}>
-          <View style={styles.listingTypePill}>
-            <Text style={styles.listingTypeText}>{property.listingType.toUpperCase()}</Text>
+          <View style={styles.cardTopBadges}>
+            <View style={styles.listingTypePill}>
+              <Text style={styles.listingTypeText}>{property.listingType.toUpperCase()}</Text>
+            </View>
+            <View style={[styles.statusPill, { backgroundColor: property.status === "available" ? "#E8F5E9" : "#FFF8E1" }]}>
+              <View style={[styles.statusDot, { backgroundColor: property.status === "available" ? theme.colors.success : theme.colors.warning }]} />
+              <Text style={[styles.statusText, { color: property.status === "available" ? theme.colors.success : theme.colors.warning }]}>{property.status}</Text>
+            </View>
           </View>
-          <View style={[styles.statusPill, { backgroundColor: property.status === "available" ? "#E8F5E9" : "#FFF8E1" }]}>
-            <View style={[styles.statusDot, { backgroundColor: property.status === "available" ? theme.colors.success : theme.colors.warning }]} />
-            <Text style={[styles.statusText, { color: property.status === "available" ? theme.colors.success : theme.colors.warning }]}>{property.status}</Text>
-          </View>
+          <Pressable
+            onPress={(event) => {
+              event.stopPropagation();
+              onToggleFavorite();
+            }}
+            disabled={favoriteBusy}
+            style={({ pressed }) => [styles.favoriteBtn, pressed && styles.favoriteBtnPressed, favoriteBusy && styles.favoriteBtnDisabled]}>
+            <Ionicons
+              name={isFavorite ? "heart" : "heart-outline"}
+              size={16}
+              color={isFavorite ? theme.colors.danger : theme.colors.textMuted}
+            />
+          </Pressable>
         </View>
         <Text style={styles.cardTitle} numberOfLines={1}>
           {property.title}
@@ -56,16 +95,28 @@ const PropertyListCard = ({ property, onPress }: { property: Property; onPress: 
         </View>
         <Text style={styles.cardPrice}>{formatLkr(property.price)}</Text>
         <View style={styles.chipRow}>
-          {property.bedrooms != null && (
+          {isResidentialPropertyType(property.propertyType) && property.bedrooms != null && (
             <View style={styles.chip}>
               <Ionicons name="bed-outline" size={10} color={theme.colors.primary} />
               <Text style={styles.chipText}>{property.bedrooms} Beds</Text>
             </View>
           )}
-          {property.bathrooms != null && (
+          {isResidentialPropertyType(property.propertyType) && property.bathrooms != null && (
             <View style={styles.chip}>
               <Ionicons name="water-outline" size={10} color={theme.colors.primary} />
               <Text style={styles.chipText}>{property.bathrooms} Baths</Text>
+            </View>
+          )}
+          {isCommercialPropertyType(property.propertyType) && property.floorArea != null && (
+            <View style={styles.chip}>
+              <Ionicons name="resize-outline" size={10} color={theme.colors.primary} />
+              <Text style={styles.chipText}>Floor {property.floorArea}</Text>
+            </View>
+          )}
+          {isLandPropertyType(property.propertyType) && property.landSize != null && (
+            <View style={styles.chip}>
+              <Ionicons name="map-outline" size={10} color={theme.colors.primary} />
+              <Text style={styles.chipText}>Land {property.landSize}</Text>
             </View>
           )}
           <View style={[styles.chip, { backgroundColor: "#EDE7F6" }]}>
@@ -80,6 +131,8 @@ const PropertyListCard = ({ property, onPress }: { property: Property; onPress: 
 
 export const ListingsScreen = () => {
   const router = useRouter();
+  const { isSignedIn } = useAppSession();
+  const { getToken } = useAuth();
 
   const [search, setSearch] = useState("");
   const [listingType, setListingType] = useState("");
@@ -90,6 +143,13 @@ export const ListingsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [favoriteMap, setFavoriteMap] = useState<Record<string, string>>({});
+  const [favoriteBusyMap, setFavoriteBusyMap] = useState<Record<string, boolean>>({});
+
+  const getTokenRef = useRef(getToken);
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  });
 
   const sort = SORT_OPTIONS[sortIndex];
 
@@ -121,6 +181,63 @@ export const ListingsScreen = () => {
   useEffect(() => {
     fetchListings();
   }, [fetchListings]);
+
+  const loadFavorites = useCallback(async () => {
+    if (!isSignedIn) {
+      setFavoriteMap({});
+      return;
+    }
+
+    try {
+      const response = await favoriteApi.getMyFavorites(getTokenRef.current);
+      const nextMap = (response.data || []).reduce<Record<string, string>>((acc, item) => {
+        const propertyId = getFavoritePropertyId(item);
+        if (propertyId) {
+          acc[propertyId] = item._id;
+        }
+        return acc;
+      }, {});
+      setFavoriteMap(nextMap);
+    } catch {
+      setFavoriteMap({});
+    }
+  }, [isSignedIn]);
+
+  useEffect(() => {
+    void loadFavorites();
+  }, [loadFavorites]);
+
+  const toggleFavorite = async (propertyId: string) => {
+    if (!isSignedIn) {
+      router.push("/(auth)/sign-in");
+      return;
+    }
+
+    setFavoriteBusyMap((prev) => ({ ...prev, [propertyId]: true }));
+    try {
+      const currentFavoriteId = favoriteMap[propertyId];
+      if (currentFavoriteId) {
+        await favoriteApi.removeFavorite(currentFavoriteId, getTokenRef.current);
+        setFavoriteMap((prev) => {
+          const next = { ...prev };
+          delete next[propertyId];
+          return next;
+        });
+      } else {
+        const response = await favoriteApi.addFavorite(propertyId, getTokenRef.current);
+        setFavoriteMap((prev) => ({ ...prev, [propertyId]: response.data._id }));
+      }
+    } catch (e) {
+      Alert.alert("Favorite failed", e instanceof Error ? e.message : "Please try again");
+      await loadFavorites();
+    } finally {
+      setFavoriteBusyMap((prev) => {
+        const next = { ...prev };
+        delete next[propertyId];
+        return next;
+      });
+    }
+  };
 
   const filtered = useMemo(() => {
     let result = items;
@@ -189,7 +306,15 @@ export const ListingsScreen = () => {
           data={filtered}
           keyExtractor={(item) => item._id}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchListings(true)} tintColor={theme.colors.primary} />}
-          renderItem={({ item }) => <PropertyListCard property={item} onPress={() => router.push(`/properties/${item._id}`)} />}
+          renderItem={({ item }) => (
+            <PropertyListCard
+              property={item}
+              onPress={() => router.push(`/properties/${item._id}`)}
+              isFavorite={Boolean(favoriteMap[item._id])}
+              favoriteBusy={Boolean(favoriteBusyMap[item._id])}
+              onToggleFavorite={() => void toggleFavorite(item._id)}
+            />
+          )}
           ListEmptyComponent={<EmptyState title="No listings found" message="Try adjusting your search or filters." />}
           contentContainerStyle={styles.listContent}
         />
@@ -295,6 +420,12 @@ const styles = StyleSheet.create({
   },
   cardTopRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  cardTopBadges: {
+    flexDirection: "row",
     gap: 6,
     flexWrap: "wrap",
   },
@@ -329,6 +460,22 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "Poppins-Regular",
     textTransform: "capitalize",
+  },
+  favoriteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  favoriteBtnPressed: {
+    backgroundColor: theme.colors.chipBg,
+  },
+  favoriteBtnDisabled: {
+    opacity: 0.65,
   },
   cardTitle: {
     ...theme.typography.bodyStrong,

@@ -10,6 +10,7 @@ import { propertyApi } from "@/src/services/api/property.api";
 import { theme } from "@/src/theme";
 import { Property } from "@/src/types/property";
 import { formatLkr, getCoverImage } from "@/src/utils/format";
+import { isCommercialPropertyType, isLandPropertyType, isResidentialPropertyType } from "@/src/utils/propertyRules";
 
 // ─── Category filter pill ─────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -26,7 +27,12 @@ const FeaturedCard = ({ property, onPress }: { property: Property; onPress: () =
   const coverUrl = getCoverImage(property);
   return (
     <Pressable style={styles.featuredCard} onPress={onPress}>
-      <Image source={{ uri: coverUrl }} style={styles.featuredImage} contentFit="cover" transition={300} />
+      <Image
+        source={coverUrl ? { uri: coverUrl } : undefined}
+        style={styles.featuredImage}
+        contentFit="cover"
+        transition={300}
+      />
       <View style={styles.featuredOverlay}>
         <View style={styles.featuredTypePill}>
           <Text style={styles.featuredTypeText}>{property.listingType.toUpperCase()}</Text>
@@ -49,7 +55,12 @@ const PropertyRow = ({ property, onPress }: { property: Property; onPress: () =>
   const coverUrl = getCoverImage(property);
   return (
     <Pressable style={styles.rowCard} onPress={onPress}>
-      <Image source={{ uri: coverUrl }} style={styles.rowImage} contentFit="cover" transition={200} />
+      <Image
+        source={coverUrl ? { uri: coverUrl } : undefined}
+        style={styles.rowImage}
+        contentFit="cover"
+        transition={200}
+      />
       <View style={styles.rowContent}>
         <Text style={styles.rowTitle} numberOfLines={1}>
           {property.title}
@@ -60,16 +71,28 @@ const PropertyRow = ({ property, onPress }: { property: Property; onPress: () =>
         </View>
         <Text style={styles.rowPrice}>{formatLkr(property.price)}</Text>
         <View style={styles.rowChips}>
-          {property.bedrooms != null && (
+          {isResidentialPropertyType(property.propertyType) && property.bedrooms != null && (
             <View style={styles.chip}>
               <Ionicons name="bed-outline" size={10} color={theme.colors.primary} />
               <Text style={styles.chipText}>{property.bedrooms}</Text>
             </View>
           )}
-          {property.bathrooms != null && (
+          {isResidentialPropertyType(property.propertyType) && property.bathrooms != null && (
             <View style={styles.chip}>
               <Ionicons name="water-outline" size={10} color={theme.colors.primary} />
               <Text style={styles.chipText}>{property.bathrooms}</Text>
+            </View>
+          )}
+          {isCommercialPropertyType(property.propertyType) && property.floorArea != null && (
+            <View style={styles.chip}>
+              <Ionicons name="resize-outline" size={10} color={theme.colors.primary} />
+              <Text style={styles.chipText}>{property.floorArea}</Text>
+            </View>
+          )}
+          {isLandPropertyType(property.propertyType) && property.landSize != null && (
+            <View style={styles.chip}>
+              <Ionicons name="map-outline" size={10} color={theme.colors.primary} />
+              <Text style={styles.chipText}>{property.landSize}</Text>
             </View>
           )}
           <View style={[styles.chip, styles.typeChip]}>

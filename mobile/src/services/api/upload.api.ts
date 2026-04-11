@@ -1,5 +1,6 @@
 import { LocalPickedImage, PropertyImage } from '@/src/types/property';
 import { apiClient, authHeader } from '@/src/services/api/client';
+import { Platform } from 'react-native';
 
 type GetTokenFn = (options?: { template?: string }) => Promise<string | null>;
 
@@ -68,13 +69,54 @@ const getImageKitAuth = async (getToken?: GetTokenFn) => {
   return payload;
 };
 
+const EXTENSION_TO_MIME: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  gif: 'image/gif',
+  heic: 'image/heic',
+  heif: 'image/heif',
+};
+
+const inferMimeType = (image: LocalPickedImage) => {
+  const fromAsset = image.mimeType?.trim();
+  if (fromAsset) return fromAsset;
+
+  const extension = image.fileName.split('.').pop()?.toLowerCase() || '';
+  return EXTENSION_TO_MIME[extension] || 'image/jpeg';
+};
+
+const buildUploadFileValue = async (image: LocalPickedImage): Promise<Blob> => {
+  if (image.file) {
+    return image.file;
+  }
+
+  if (Platform.OS === 'web') {
+    try {
+      const response = await fetch(image.uri);
+      if (response.ok) {
+        const blob = await response.blob();
+        if (blob.size > 0) {
+          return blob;
+        }
+      }
+    } catch {
+      // Fallback for non-fetchable blob URLs.
+    }
+  }
+
+  return {
+    uri: image.uri,
+    type: inferMimeType(image),
+    name: image.fileName,
+  } as unknown as Blob;
+};
+
 const uploadToImageKit = async (image: LocalPickedImage, auth: ImageKitAuthPayload) => {
   const formData = new FormData();
-  formData.append('file', {
-    uri: image.uri,
-    type: 'image/jpeg',
-    name: image.fileName,
-  } as unknown as Blob);
+  const uploadFile = await buildUploadFileValue(image);
+  formData.append('file', uploadFile);
   formData.append('fileName', image.fileName);
   formData.append('useUniqueFileName', 'true');
   formData.append('token', auth.token);

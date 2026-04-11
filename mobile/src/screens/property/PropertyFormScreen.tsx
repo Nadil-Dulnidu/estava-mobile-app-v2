@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/src/components/common/AppButton';
 import { AppInput } from '@/src/components/common/AppInput';
@@ -9,11 +9,16 @@ import {
   FURNISHED_OPTIONS,
   LISTING_OPTIONS,
   PROPERTY_TYPE_OPTIONS,
-  STATUS_OPTIONS,
 } from '@/src/constants/property';
 import { theme } from '@/src/theme';
 import { LocalPickedImage, PropertyImage } from '@/src/types/property';
 import { ensureOneCoverImage, parseNumberInput, validatePropertyForm } from '@/src/utils/propertyForm';
+import {
+  getStatusOptionsForListingType,
+  isCommercialPropertyType,
+  isLandPropertyType,
+  isResidentialPropertyType,
+} from '@/src/utils/propertyRules';
 
 export interface PropertyFormState {
   title: string;
@@ -31,6 +36,7 @@ export interface PropertyFormState {
   parkingSpaces: string;
   landSize: string;
   floorArea: string;
+  distanceFromCityCenterKm: string;
   furnishedStatus: string;
   yearBuilt: string;
   features: string[];
@@ -64,7 +70,13 @@ export const PropertyFormScreen = ({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const isLand = values.propertyType === 'land';
+  const isLand = isLandPropertyType(values.propertyType);
+  const isCommercial = isCommercialPropertyType(values.propertyType);
+  const isResidential = isResidentialPropertyType(values.propertyType);
+  const statusOptions = useMemo(
+    () => getStatusOptionsForListingType(values.listingType),
+    [values.listingType]
+  );
 
   const sectionTitleStyle = useMemo(() => [styles.sectionTitle], []);
 
@@ -72,6 +84,11 @@ export const PropertyFormScreen = ({
     setSubmitError(null);
     setValues((prev) => ({ ...prev, [field]: next }));
   };
+
+  useEffect(() => {
+    if (statusOptions.some((option) => option.value === values.status)) return;
+    setValues((prev) => ({ ...prev, status: 'available' }));
+  }, [statusOptions, values.status]);
 
   const handleSubmit = async () => {
     setSubmitError(null);
@@ -109,6 +126,15 @@ export const PropertyFormScreen = ({
     if (isLand) {
       normalizedValues.bedrooms = '';
       normalizedValues.bathrooms = '';
+      normalizedValues.parkingSpaces = '';
+      normalizedValues.floorArea = '';
+      normalizedValues.furnishedStatus = '';
+      normalizedValues.yearBuilt = '';
+    }
+
+    if (isCommercial) {
+      normalizedValues.bedrooms = '';
+      normalizedValues.furnishedStatus = '';
     }
 
     try {
@@ -173,7 +199,7 @@ export const PropertyFormScreen = ({
       <OptionSelect
         label='Status'
         value={values.status}
-        options={STATUS_OPTIONS}
+        options={statusOptions}
         onChange={(v) => setValue('status', v)}
       />
 
@@ -204,7 +230,7 @@ export const PropertyFormScreen = ({
       />
 
       <Text style={sectionTitleStyle}>Property Specs</Text>
-      {!isLand ? (
+      {isResidential ? (
         <>
           <AppInput
             label='Bedrooms'
@@ -223,38 +249,66 @@ export const PropertyFormScreen = ({
         </>
       ) : null}
 
+      {isCommercial ? (
+        <AppInput
+          label='Restrooms / Bathrooms (Optional)'
+          value={values.bathrooms}
+          onChangeText={(v) => setValue('bathrooms', v)}
+          keyboardType='number-pad'
+          error={errors.bathrooms}
+        />
+      ) : null}
+
+      {!isLand ? (
+        <AppInput
+          label='Parking Spaces'
+          value={values.parkingSpaces}
+          onChangeText={(v) => setValue('parkingSpaces', v)}
+          keyboardType='number-pad'
+          error={errors.parkingSpaces}
+        />
+      ) : null}
       <AppInput
-        label='Parking Spaces'
-        value={values.parkingSpaces}
-        onChangeText={(v) => setValue('parkingSpaces', v)}
-        keyboardType='number-pad'
-        error={errors.parkingSpaces}
-      />
-      <AppInput
-        label='Land Size'
+        label={isLand ? 'Land Size (Required)' : 'Land Size'}
         value={values.landSize}
         onChangeText={(v) => setValue('landSize', v)}
         keyboardType='numeric'
+        error={errors.landSize}
       />
-      <AppInput
-        label='Floor Area'
-        value={values.floorArea}
-        onChangeText={(v) => setValue('floorArea', v)}
-        keyboardType='numeric'
-      />
-      <OptionSelect
-        label='Furnished Status'
-        value={values.furnishedStatus}
-        options={FURNISHED_OPTIONS}
-        onChange={(v) => setValue('furnishedStatus', v)}
-      />
-      <AppInput
-        label='Year Built'
-        value={values.yearBuilt}
-        onChangeText={(v) => setValue('yearBuilt', v)}
-        keyboardType='number-pad'
-        error={errors.yearBuilt}
-      />
+      {isLand ? (
+        <AppInput
+          label='Distance From City Center (km)'
+          value={values.distanceFromCityCenterKm}
+          onChangeText={(v) => setValue('distanceFromCityCenterKm', v)}
+          keyboardType='numeric'
+          error={errors.distanceFromCityCenterKm}
+        />
+      ) : (
+        <>
+          <AppInput
+            label={isCommercial ? 'Floor Area (Required)' : 'Floor Area'}
+            value={values.floorArea}
+            onChangeText={(v) => setValue('floorArea', v)}
+            keyboardType='numeric'
+            error={errors.floorArea}
+          />
+          {isCommercial ? null : (
+            <OptionSelect
+              label='Furnished Status'
+              value={values.furnishedStatus}
+              options={FURNISHED_OPTIONS}
+              onChange={(v) => setValue('furnishedStatus', v)}
+            />
+          )}
+          <AppInput
+            label='Year Built'
+            value={values.yearBuilt}
+            onChangeText={(v) => setValue('yearBuilt', v)}
+            keyboardType='number-pad'
+            error={errors.yearBuilt}
+          />
+        </>
+      )}
 
       <Text style={sectionTitleStyle}>Features & Tags</Text>
       <ChipInput
@@ -308,6 +362,7 @@ export const defaultPropertyFormValues: PropertyFormState = {
   parkingSpaces: '',
   landSize: '',
   floorArea: '',
+  distanceFromCityCenterKm: '',
   furnishedStatus: 'unfurnished',
   yearBuilt: '',
   features: [],
@@ -315,28 +370,36 @@ export const defaultPropertyFormValues: PropertyFormState = {
   images: [],
 };
 
-export const mapFormStateToPayload = (state: PropertyFormState) => ({
-  title: state.title.trim(),
-  description: state.description.trim(),
-  price: Number(state.price),
-  listingType: state.listingType,
-  propertyType: state.propertyType,
-  status: state.status,
-  address: state.address.trim(),
-  city: state.city.trim(),
-  district: state.district.trim() || undefined,
-  province: state.province.trim() || undefined,
-  bedrooms: parseNumberInput(state.bedrooms),
-  bathrooms: parseNumberInput(state.bathrooms),
-  parkingSpaces: parseNumberInput(state.parkingSpaces),
-  landSize: parseNumberInput(state.landSize),
-  floorArea: parseNumberInput(state.floorArea),
-  furnishedStatus: state.furnishedStatus,
-  yearBuilt: parseNumberInput(state.yearBuilt),
-  features: state.features,
-  tags: state.tags,
-  images: state.images,
-});
+export const mapFormStateToPayload = (state: PropertyFormState) => {
+  const optionalNumber = (value: string) => {
+    const parsed = parseNumberInput(value);
+    return parsed == null ? undefined : parsed;
+  };
+
+  return {
+    title: state.title.trim(),
+    description: state.description.trim(),
+    price: Number(state.price),
+    listingType: state.listingType,
+    propertyType: state.propertyType,
+    status: state.status,
+    address: state.address.trim(),
+    city: state.city.trim(),
+    district: state.district.trim() || undefined,
+    province: state.province.trim() || undefined,
+    bedrooms: optionalNumber(state.bedrooms),
+    bathrooms: optionalNumber(state.bathrooms),
+    parkingSpaces: optionalNumber(state.parkingSpaces),
+    landSize: optionalNumber(state.landSize),
+    floorArea: optionalNumber(state.floorArea),
+    distanceFromCityCenterKm: optionalNumber(state.distanceFromCityCenterKm),
+    furnishedStatus: state.furnishedStatus || undefined,
+    yearBuilt: optionalNumber(state.yearBuilt),
+    features: state.features,
+    tags: state.tags,
+    images: state.images,
+  };
+};
 
 const styles = StyleSheet.create({
   container: {

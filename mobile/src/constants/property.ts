@@ -11,12 +11,27 @@ export const PROPERTY_TYPE_OPTIONS = [
   { label: 'Commercial', value: 'commercial' },
 ] as const;
 
+export const RESIDENTIAL_PROPERTY_TYPES = ['apartment', 'house', 'villa'] as const;
+
 export const STATUS_OPTIONS = [
   { label: 'Available', value: 'available' },
   { label: 'Sold', value: 'sold' },
   { label: 'Rented', value: 'rented' },
   { label: 'Unavailable', value: 'unavailable' },
 ] as const;
+
+export const STATUS_OPTIONS_BY_LISTING_TYPE = {
+  sale: [
+    { label: 'Available', value: 'available' },
+    { label: 'Sold', value: 'sold' },
+    { label: 'Unavailable', value: 'unavailable' },
+  ],
+  rent: [
+    { label: 'Available', value: 'available' },
+    { label: 'Rented', value: 'rented' },
+    { label: 'Unavailable', value: 'unavailable' },
+  ],
+} as const;
 
 export const FURNISHED_OPTIONS = [
   { label: 'Furnished', value: 'furnished' },

@@ -338,6 +338,10 @@ export const deleteInquiry = async (inquiryId, actorId, actorRole) => {
   const inquiry = await findInquiryByIdOrThrow(inquiryId);
   ensureRelevantAccess(inquiry, actorId, actorRole);
 
+  if (!isAdminRole(actorRole) && inquiry.inquiryStatus !== "pending") {
+    throw new AppError("Only pending inquiries can be deleted", 400);
+  }
+
   try {
     await inquiry.deleteOne();
   } catch (error) {

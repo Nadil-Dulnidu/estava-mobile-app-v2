@@ -65,6 +65,16 @@ export const getReviewsByProperty = asyncHandler(async (req, res) => {
   });
 });
 
+export const getPublicReviewsByProperty = asyncHandler(async (req, res) => {
+  const result = await reviewService.getPublicReviewsByProperty(req.params.id, req.query);
+
+  return sendSuccess(res, {
+    message: "Public property reviews fetched successfully",
+    data: result.items,
+    meta: result.meta,
+  });
+});
+
 export const getReviewById = asyncHandler(async (req, res) => {
   const actor = getActor(req);
   const review = await reviewService.getReviewById(req.params.id, actor.id);

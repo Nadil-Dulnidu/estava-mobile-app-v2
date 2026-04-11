@@ -1,9 +1,12 @@
 import logger from "../config/logger.js";
+import imageKit, { hasImageKitConfig } from "../config/imagekit.js";
+import env from "../config/env.js";
 import Favorite from "../models/favorite.model.js";
 import Property from "../models/property.model.js";
 import AppError from "../utils/AppError.js";
 
 const userIdRegex = /^user_[a-zA-Z0-9]+$/;
+const IMAGEKIT_SIGNED_URL_TTL_SECONDS = 60 * 60 * 24;
 
 const sanitizeFavoritePayload = (payload = {}) => {
   const next = {};
@@ -51,6 +54,58 @@ const findFavoriteByIdForActor = async (favoriteId, actorId) => {
   return favorite;
 };
 
+const buildImageDeliveryUrl = (image = {}) => {
+  const currentUrl = typeof image.url === "string" ? image.url.trim() : "";
+  const fileKey = typeof image.fileKey === "string" ? image.fileKey.trim() : "";
+
+  if (currentUrl) return currentUrl;
+  if (!fileKey) return "";
+  if (!hasImageKitConfig || !imageKit?.helper?.buildSrc) return currentUrl;
+
+  try {
+    const src = fileKey.startsWith("/") ? fileKey : `/${fileKey}`;
+    const signedUrl = imageKit.helper.buildSrc({
+      src,
+      urlEndpoint: env.imageKitUrlEndpoint,
+      signed: true,
+      expiresIn: IMAGEKIT_SIGNED_URL_TTL_SECONDS,
+    });
+    return typeof signedUrl === "string" && signedUrl.trim() ? signedUrl : "";
+  } catch {
+    return currentUrl;
+  }
+};
+
+const mapFavoriteForClient = (favorite) => {
+  if (!favorite) return favorite;
+
+  const plain =
+    typeof favorite.toObject === "function" ? favorite.toObject() : favorite;
+
+  const property =
+    plain.propertyId && typeof plain.propertyId === "object"
+      ? plain.propertyId
+      : null;
+
+  if (!property || !Array.isArray(property.images)) {
+    return plain;
+  }
+
+  return {
+    ...plain,
+    propertyId: {
+      ...property,
+      images: property.images.map((image) => ({
+        ...image,
+        url: buildImageDeliveryUrl(image),
+      })),
+    },
+  };
+};
+
+const mapFavoritesForClient = (favorites = []) =>
+  favorites.map((item) => mapFavoriteForClient(item));
+
 export const createFavorite = async (payload, actorId) => {
   ensureAuthenticatedActor(actorId);
 
@@ -68,11 +123,13 @@ export const createFavorite = async (payload, actorId) => {
   }
 
   try {
-    return await Favorite.create({
+    const favorite = await Favorite.create({
       userId: actorId,
       propertyId: payload.propertyId,
       ...sanitized,
     });
+
+    return mapFavoriteForClient(favorite);
   } catch (error) {
     logger.error("Favorite create failed", {
       actorId,
@@ -86,9 +143,11 @@ export const createFavorite = async (payload, actorId) => {
 export const listMyFavorites = async (actorId) => {
   ensureAuthenticatedActor(actorId);
 
-  return Favorite.find({ userId: actorId })
+  const items = await Favorite.find({ userId: actorId })
     .sort({ createdAt: -1 })
     .populate("propertyId");
+
+  return mapFavoritesForClient(items);
 };
 
 export const listFavoritesByUser = async (userId, actorId) => {
@@ -100,14 +159,17 @@ export const listFavoritesByUser = async (userId, actorId) => {
 
   ensureOwnerAccess(actorId, userId);
 
-  return Favorite.find({ userId })
+  const items = await Favorite.find({ userId })
     .sort({ createdAt: -1 })
     .populate("propertyId");
+
+  return mapFavoritesForClient(items);
 };
 
 export const getFavoriteById = async (favoriteId, actorId) => {
   ensureAuthenticatedActor(actorId);
-  return findFavoriteByIdForActor(favoriteId, actorId);
+  const favorite = await findFavoriteByIdForActor(favoriteId, actorId);
+  return mapFavoriteForClient(favorite);
 };
 
 export const updateFavorite = async (favoriteId, payload, actorId) => {
@@ -120,7 +182,7 @@ export const updateFavorite = async (favoriteId, payload, actorId) => {
 
   try {
     await favorite.save();
-    return favorite;
+    return mapFavoriteForClient(favorite);
   } catch (error) {
     logger.error("Favorite update failed", {
       actorId,

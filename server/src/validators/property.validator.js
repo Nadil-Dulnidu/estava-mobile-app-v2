@@ -2,14 +2,16 @@ import Joi from "joi";
 import {
   FURNISHED_STATUSES,
   LISTING_TYPES,
-  PROPERTY_MODERATION_STATUSES,
   PROPERTY_STATUSES,
+  RESIDENTIAL_PROPERTY_TYPES,
+  STATUS_OPTIONS_BY_LISTING_TYPE,
   PROPERTY_TYPES,
 } from "../constants/property.constants.js";
 
 const currentYear = new Date().getFullYear();
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 const ownerIdRegex = /^user_[a-zA-Z0-9]+$/;
+const residentialTypeSet = new Set(RESIDENTIAL_PROPERTY_TYPES);
 
 const nonEmptyTrimmedString = Joi.string().trim().min(1);
 
@@ -46,6 +48,7 @@ const basePropertySchema = {
   parkingSpaces: Joi.number().min(0),
   landSize: Joi.number().min(0),
   floorArea: Joi.number().min(0),
+  distanceFromCityCenterKm: Joi.number().min(0),
   furnishedStatus: Joi.string()
     .trim()
     .lowercase()
@@ -84,18 +87,38 @@ export const createPropertySchema = withCoverRule(
     createdBy: Joi.forbidden(),
     updatedBy: Joi.forbidden(),
     ownerId: Joi.forbidden(),
-    moderationStatus: Joi.forbidden(),
-    moderationNote: Joi.forbidden(),
-    moderatedAt: Joi.forbidden(),
-    moderatedBy: Joi.forbidden(),
   }).custom((value, helpers) => {
-    const isLand = value.propertyType === "land";
-    const hasBedrooms = value.bedrooms !== undefined && value.bedrooms !== null;
-    const hasBathrooms = value.bathrooms !== undefined && value.bathrooms !== null;
+    const propertyType = value.propertyType;
+    const isResidential = residentialTypeSet.has(propertyType);
+    const isLand = propertyType === "land";
+    const isCommercial = propertyType === "commercial";
 
-    if (!isLand && (!hasBedrooms || !hasBathrooms)) {
+    if (isResidential) {
+      const hasBedrooms = value.bedrooms !== undefined && value.bedrooms !== null;
+      const hasBathrooms = value.bathrooms !== undefined && value.bathrooms !== null;
+      if (!hasBedrooms || !hasBathrooms) {
+        return helpers.error("any.invalid", {
+          message: "bedrooms and bathrooms are required for residential properties",
+        });
+      }
+    }
+
+    if (isLand && (value.landSize === undefined || value.landSize === null)) {
       return helpers.error("any.invalid", {
-        message: "bedrooms and bathrooms are required for non-land properties",
+        message: "landSize is required for land properties",
+      });
+    }
+
+    if (isCommercial && (value.floorArea === undefined || value.floorArea === null)) {
+      return helpers.error("any.invalid", {
+        message: "floorArea is required for commercial properties",
+      });
+    }
+
+    const allowedStatuses = STATUS_OPTIONS_BY_LISTING_TYPE[value.listingType] || [];
+    if (value.status && !allowedStatuses.includes(value.status)) {
+      return helpers.error("any.invalid", {
+        message: `status ${value.status} is invalid for listingType ${value.listingType}`,
       });
     }
 
@@ -109,11 +132,20 @@ export const updatePropertySchema = withCoverRule(
     createdBy: Joi.forbidden(),
     updatedBy: Joi.forbidden(),
     ownerId: Joi.forbidden(),
-    moderationStatus: Joi.forbidden(),
-    moderationNote: Joi.forbidden(),
-    moderatedAt: Joi.forbidden(),
-    moderatedBy: Joi.forbidden(),
-  }).min(1)
+  })
+    .min(1)
+    .custom((value, helpers) => {
+      if (value.listingType && value.status) {
+        const allowedStatuses = STATUS_OPTIONS_BY_LISTING_TYPE[value.listingType] || [];
+        if (!allowedStatuses.includes(value.status)) {
+          return helpers.error("any.invalid", {
+            message: `status ${value.status} is invalid for listingType ${value.listingType}`,
+          });
+        }
+      }
+
+      return value;
+    })
 );
 
 export const propertyIdParamSchema = Joi.object({
@@ -156,11 +188,8 @@ export const listPropertiesQuerySchema = Joi.object({
   status: Joi.string()
     .trim()
     .lowercase()
-    .valid(...PROPERTY_STATUSES),
-  moderationStatus: Joi.string()
-    .trim()
-    .lowercase()
-    .valid(...PROPERTY_MODERATION_STATUSES),
+    .valid(...PROPERTY_STATUSES)
+    .allow(""),
   city: Joi.string().trim().max(80),
   ownerId: Joi.string().pattern(ownerIdRegex).messages({
     "string.pattern.base": "Invalid owner id",
@@ -191,15 +220,6 @@ export const listPropertiesQuerySchema = Joi.object({
   }
 
   return value;
-});
-
-export const moderatePropertySchema = Joi.object({
-  moderationStatus: Joi.string()
-    .trim()
-    .lowercase()
-    .valid(...PROPERTY_MODERATION_STATUSES)
-    .required(),
-  moderationNote: Joi.string().trim().max(500).allow(null, ""),
 });
 
 export const updateStatusSchema = Joi.object({

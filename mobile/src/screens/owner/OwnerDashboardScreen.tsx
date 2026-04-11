@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/expo';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppHeader } from '@/src/components/common/AppHeader';
 import { ErrorState, LoadingState } from '@/src/components/common/StateViews';
@@ -10,7 +10,7 @@ import { propertyApi } from '@/src/services/api/property.api';
 import { theme } from '@/src/theme';
 
 export const OwnerDashboardScreen = () => {
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const getTokenRef = useRef(getToken);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,14 +20,20 @@ export const OwnerDashboardScreen = () => {
     getTokenRef.current = getToken;
   });
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    if (!userId) {
+      setError('Could not identify the current user');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
       const [properties, inquiries, appointments] = await Promise.all([
         propertyApi.getMyProperties({ page: 1, limit: 1 }, getTokenRef.current),
-        inquiryApi.getMyReceivedInquiries(getTokenRef.current),
-        appointmentApi.getAppointments({ page: 1, limit: 1 }, getTokenRef.current),
+        inquiryApi.getMyReceivedInquiries(userId, getTokenRef.current),
+        appointmentApi.getMyReceivedAppointments(userId, { page: 1, limit: 1 }, getTokenRef.current),
       ]);
 
       setStats({
@@ -40,11 +46,11 @@ export const OwnerDashboardScreen = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const cards = useMemo(
     () => [

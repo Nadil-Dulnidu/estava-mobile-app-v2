@@ -152,28 +152,6 @@ export const changeStatus = asyncHandler(async (req, res) => {
   });
 });
 
-export const moderateProperty = asyncHandler(async (req, res) => {
-  const actor = getActor(req);
-  const property = await propertyService.moderateProperty(
-    req.params.id,
-    req.body,
-    actor.id,
-    actor.role
-  );
-
-  logger.info("Property moderation updated", {
-    propertyId: property._id,
-    moderationStatus: property.moderationStatus,
-    actorId: actor.id,
-    actorRole: actor.role,
-  });
-
-  return sendSuccess(res, {
-    message: "Property moderation updated successfully",
-    data: property,
-  });
-});
-
 export const addImages = asyncHandler(async (req, res) => {
   const actor = getActor(req);
   const property = await propertyService.addPropertyImages(

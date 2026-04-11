@@ -12,7 +12,7 @@ import {
 } from '@/src/screens/property/PropertyFormScreen';
 import { propertyApi } from '@/src/services/api/property.api';
 import { uploadApi } from '@/src/services/api/upload.api';
-import { mapPropertyToForm } from '@/src/utils/propertyForm';
+import { ensureOneCoverImage, mapPropertyToForm } from '@/src/utils/propertyForm';
 import { theme } from '@/src/theme';
 
 export const EditPropertyScreen = () => {
@@ -97,9 +97,10 @@ export const EditPropertyScreen = () => {
           if (!id) return;
 
           const uploaded = await uploadApi.uploadImages(localImages, getTokenRef.current);
+          const mergedImages = ensureOneCoverImage([...existingImages, ...uploaded]);
           const payload = mapFormStateToPayload({
             ...formValues,
-            images: [...existingImages, ...uploaded],
+            images: mergedImages,
           });
 
           await propertyApi.updateProperty(id, payload, getTokenRef.current);

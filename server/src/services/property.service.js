@@ -2,8 +2,8 @@ import env from "../config/env.js";
 import imageKit, { hasImageKitConfig } from "../config/imagekit.js";
 import { USER_ROLES } from "../constants/auth.constants.js";
 import {
-  PROPERTY_MODERATION_STATUSES,
   PROPERTY_STATUSES,
+  STATUS_OPTIONS_BY_LISTING_TYPE,
   STATUS_TRANSITIONS,
 } from "../constants/property.constants.js";
 import { createNotificationForUser } from "./notification.service.js";
@@ -14,6 +14,8 @@ import {
   normalizeImages,
   normalizeStringArray,
 } from "../utils/propertyNormalizer.js";
+
+const IMAGEKIT_SIGNED_URL_TTL_SECONDS = 60 * 60 * 24;
 
 const propertyWriteFields = [
   "title",
@@ -31,12 +33,49 @@ const propertyWriteFields = [
   "parkingSpaces",
   "landSize",
   "floorArea",
+  "distanceFromCityCenterKm",
   "furnishedStatus",
   "yearBuilt",
   "features",
   "tags",
   "images",
 ];
+
+const normalizePropertyPayloadByType = (payload = {}, propertyType) => {
+  if (!propertyType) return payload;
+
+  const next = { ...payload };
+
+  if (propertyType === "land") {
+    next.bedrooms = null;
+    next.bathrooms = null;
+    next.parkingSpaces = null;
+    next.floorArea = null;
+    next.furnishedStatus = null;
+    next.yearBuilt = null;
+    return next;
+  }
+
+  if (propertyType === "commercial") {
+    next.bedrooms = null;
+    next.furnishedStatus = null;
+    return next;
+  }
+
+  return next;
+};
+
+const assertStatusAllowedForListingType = (listingType, status) => {
+  if (!listingType || !status) return;
+
+  const allowedStatuses = STATUS_OPTIONS_BY_LISTING_TYPE[listingType] || [];
+  if (!allowedStatuses.includes(status)) {
+    throw new AppError(
+      `Status ${status} is not valid for listing type ${listingType}`,
+      400
+    );
+  }
+};
 
 const sanitizePropertyPayload = (payload = {}) => {
   const next = {};
@@ -70,7 +109,6 @@ const buildListFilter = (query, actorId, actorRole) => {
   if (query.listingType) filter.listingType = query.listingType;
   if (query.propertyType) filter.propertyType = query.propertyType;
   if (query.status) filter.status = query.status;
-  if (query.moderationStatus) filter.moderationStatus = query.moderationStatus;
 
   if (isAdminRole(actorRole)) {
     if (query.ownerId) filter.createdBy = query.ownerId;
@@ -97,9 +135,7 @@ const buildListFilter = (query, actorId, actorRole) => {
 };
 
 const buildPublicListFilter = (query) => {
-  const filter = {
-    moderationStatus: "approved",
-  };
+  const filter = {};
 
   if (query.listingType) filter.listingType = query.listingType;
   if (query.propertyType) filter.propertyType = query.propertyType;
@@ -138,9 +174,14 @@ export const createProperty = async (payload, actorId) => {
   }
 
   const sanitized = sanitizePropertyPayload(payload);
+  const normalized = normalizePropertyPayloadByType(sanitized, sanitized.propertyType);
+  assertStatusAllowedForListingType(
+    normalized.listingType,
+    normalized.status || "available"
+  );
 
   const property = await Property.create({
-    ...sanitized,
+    ...normalized,
     createdBy: actorId,
     updatedBy: actorId,
   });
@@ -172,7 +213,7 @@ export const listProperties = async (query, actorId, actorRole) => {
   ]);
 
   return {
-    items,
+    items: mapPropertiesForClient(items),
     meta: {
       total,
       page,
@@ -201,7 +242,7 @@ export const listPublicProperties = async (query) => {
   ]);
 
   return {
-    items,
+    items: mapPropertiesForClient(items),
     meta: {
       total,
       page,
@@ -226,17 +267,66 @@ export const getOwnerProperties = async (ownerId, query, actorId, actorRole) => 
 export const getPropertyById = async (propertyId, actorId, actorRole) => {
   const property = await findPropertyByIdOrThrow(propertyId);
   ensureOwnerOrAdmin(property, actorId, actorRole);
-  return property;
+  return mapPropertyForClient(property);
 };
+
+const buildImageDeliveryUrl = (image = {}) => {
+  const currentUrl = typeof image.url === "string" ? image.url.trim() : "";
+  const fileKey = typeof image.fileKey === "string" ? image.fileKey.trim() : "";
+
+  if (fileKey && hasImageKitConfig && imageKit?.helper?.buildSrc) {
+    try {
+      const src = fileKey.startsWith("/") ? fileKey : `/${fileKey}`;
+      const signedUrl = imageKit.helper.buildSrc({
+        src,
+        urlEndpoint: env.imageKitUrlEndpoint,
+        signed: true,
+        expiresIn: IMAGEKIT_SIGNED_URL_TTL_SECONDS,
+      });
+      if (typeof signedUrl === "string" && signedUrl.trim()) {
+        return signedUrl;
+      }
+    } catch {
+      // Fallbacks below
+    }
+  }
+
+  if (currentUrl) return currentUrl;
+
+  if (fileKey && env.imageKitUrlEndpoint) {
+    const normalizedKey = fileKey.startsWith("/") ? fileKey : `/${fileKey}`;
+    return `${env.imageKitUrlEndpoint}${normalizedKey}`;
+  }
+
+  return "";
+};
+
+const mapPropertyForClient = (property) => {
+  if (!property) return property;
+
+  const plain =
+    typeof property.toObject === "function" ? property.toObject() : property;
+
+  if (!Array.isArray(plain.images)) {
+    return plain;
+  }
+
+  return {
+    ...plain,
+    images: plain.images.map((image) => ({
+      ...image,
+      url: buildImageDeliveryUrl(image),
+    })),
+  };
+};
+
+const mapPropertiesForClient = (items = []) =>
+  items.map((item) => mapPropertyForClient(item));
 
 export const getPublicPropertyById = async (propertyId) => {
   const property = await findPropertyByIdOrThrow(propertyId);
 
-  if (property.moderationStatus !== "approved") {
-    throw new AppError("Property not found", 404);
-  }
-
-  return property;
+  return mapPropertyForClient(property);
 };
 
 export const updateProperty = async (propertyId, payload, actorId, actorRole) => {
@@ -244,14 +334,21 @@ export const updateProperty = async (propertyId, payload, actorId, actorRole) =>
   ensureOwnerOrAdmin(property, actorId, actorRole);
 
   const sanitized = sanitizePropertyPayload(payload);
-  Object.assign(property, sanitized);
+  const nextPropertyType = sanitized.propertyType || property.propertyType;
+  const normalized = normalizePropertyPayloadByType(sanitized, nextPropertyType);
+  const nextListingType = normalized.listingType || property.listingType;
+  const nextStatus = normalized.status || property.status;
+
+  assertStatusAllowedForListingType(nextListingType, nextStatus);
+
+  Object.assign(property, normalized);
 
   if (actorId) {
     property.updatedBy = actorId;
   }
 
   await property.save();
-  return property;
+  return mapPropertyForClient(property);
 };
 
 export const hardDeleteProperty = async (propertyId, actorId, actorRole) => {
@@ -270,8 +367,10 @@ export const changePropertyStatus = async (propertyId, nextStatus, actorId, acto
   ensureOwnerOrAdmin(property, actorId, actorRole);
 
   if (property.status === nextStatus) {
-    return property;
+    return mapPropertyForClient(property);
   }
+
+  assertStatusAllowedForListingType(property.listingType, nextStatus);
 
   const allowedTransitions = STATUS_TRANSITIONS[property.status] || [];
 
@@ -304,54 +403,7 @@ export const changePropertyStatus = async (propertyId, nextStatus, actorId, acto
     );
   }
 
-  return property;
-};
-
-export const moderateProperty = async (
-  propertyId,
-  { moderationStatus, moderationNote },
-  actorId,
-  actorRole
-) => {
-  if (!isAdminRole(actorRole)) {
-    throw new AppError("You do not have permission to moderate properties", 403);
-  }
-
-  if (!PROPERTY_MODERATION_STATUSES.includes(moderationStatus)) {
-    throw new AppError("Invalid moderation status", 400);
-  }
-
-  const property = await findPropertyByIdOrThrow(propertyId);
-
-  property.moderationStatus = moderationStatus;
-  property.moderationNote = moderationNote?.trim() || null;
-  property.moderatedAt = new Date();
-  property.moderatedBy = actorId || null;
-
-  await property.save();
-
-  if (property.createdBy) {
-    const moderationMessage =
-      moderationStatus === "approved"
-        ? `${property.title} was approved`
-        : moderationStatus === "rejected"
-          ? `${property.title} was rejected`
-          : `${property.title} moderation set to pending`;
-
-    await createNotificationForUser(
-      {
-        title: "Property moderation update",
-        message: moderationMessage,
-        type: "system",
-        status: "unread",
-        relatedEntityId: property._id,
-        relatedEntityType: "property",
-      },
-      property.createdBy
-    );
-  }
-
-  return property;
+  return mapPropertyForClient(property);
 };
 
 export const addPropertyImages = async (propertyId, images, actorId, actorRole) => {
@@ -375,7 +427,7 @@ export const addPropertyImages = async (propertyId, images, actorId, actorRole) 
   }
 
   await property.save();
-  return property;
+  return mapPropertyForClient(property);
 };
 
 export const uploadPropertyImage = async (propertyId, payload, actorId, actorRole) => {
@@ -423,7 +475,7 @@ export const uploadPropertyImage = async (propertyId, payload, actorId, actorRol
   }
 
   await property.save();
-  return property;
+  return mapPropertyForClient(property);
 };
 
 export const updatePropertyImage = async (propertyId, imageId, payload, actorId, actorRole) => {
@@ -458,7 +510,7 @@ export const updatePropertyImage = async (propertyId, imageId, payload, actorId,
   }
 
   await property.save();
-  return property;
+  return mapPropertyForClient(property);
 };
 
 export const removePropertyImage = async (propertyId, imageId, actorId, actorRole) => {
@@ -483,7 +535,7 @@ export const removePropertyImage = async (propertyId, imageId, actorId, actorRol
   }
 
   await property.save();
-  return property;
+  return mapPropertyForClient(property);
 };
 
 export const setCoverImage = async (propertyId, imageId, actorId, actorRole) => {
@@ -505,7 +557,7 @@ export const setCoverImage = async (propertyId, imageId, actorId, actorRole) => 
   }
 
   await property.save();
-  return property;
+  return mapPropertyForClient(property);
 };
 
 export const addFeatures = async (propertyId, features, actorId, actorRole) => {
@@ -520,7 +572,7 @@ export const addFeatures = async (propertyId, features, actorId, actorRole) => {
   }
 
   await property.save();
-  return property;
+  return mapPropertyForClient(property);
 };
 
 export const replaceFeatures = async (propertyId, features, actorId, actorRole) => {
@@ -534,7 +586,7 @@ export const replaceFeatures = async (propertyId, features, actorId, actorRole) 
   }
 
   await property.save();
-  return property;
+  return mapPropertyForClient(property);
 };
 
 export const removeFeatures = async (propertyId, features, actorId, actorRole) => {
@@ -549,5 +601,5 @@ export const removeFeatures = async (propertyId, features, actorId, actorRole) =
   }
 
   await property.save();
-  return property;
+  return mapPropertyForClient(property);
 };

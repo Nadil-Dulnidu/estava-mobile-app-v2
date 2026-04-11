@@ -362,6 +362,10 @@ export const deleteAppointment = async (appointmentId, actorId, actorRole) => {
   const appointment = await findAppointmentByIdOrThrow(appointmentId);
   ensureRelevantAccess(appointment, actorId, actorRole);
 
+  if (!isAdminRole(actorRole) && appointment.appointmentStatus !== "pending") {
+    throw new AppError("Only pending appointments can be deleted", 400);
+  }
+
   try {
     const counterpartUserId =
       appointment.userId === actorId ? appointment.agentId : appointment.userId;

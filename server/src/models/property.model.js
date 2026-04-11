@@ -2,12 +2,14 @@ import mongoose from "mongoose";
 import {
   FURNISHED_STATUSES,
   LISTING_TYPES,
-  PROPERTY_MODERATION_STATUSES,
   PROPERTY_STATUSES,
+  RESIDENTIAL_PROPERTY_TYPES,
+  STATUS_OPTIONS_BY_LISTING_TYPE,
   PROPERTY_TYPES,
 } from "../constants/property.constants.js";
 
 const { Schema } = mongoose;
+const residentialTypeSet = new Set(RESIDENTIAL_PROPERTY_TYPES);
 
 const imageSchema = new Schema(
   {
@@ -93,30 +95,6 @@ const propertySchema = new Schema(
       trim: true,
       lowercase: true,
     },
-    moderationStatus: {
-      type: String,
-      enum: PROPERTY_MODERATION_STATUSES,
-      default: "pending",
-      trim: true,
-      lowercase: true,
-      index: true,
-    },
-    moderationNote: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-      default: null,
-    },
-    moderatedAt: {
-      type: Date,
-      default: null,
-    },
-    moderatedBy: {
-      type: String,
-      trim: true,
-      default: null,
-      index: true,
-    },
     address: {
       type: String,
       required: true,
@@ -156,7 +134,7 @@ const propertySchema = new Schema(
     parkingSpaces: {
       type: Number,
       min: 0,
-      default: 0,
+      default: null,
     },
     landSize: {
       type: Number,
@@ -164,6 +142,11 @@ const propertySchema = new Schema(
       default: null,
     },
     floorArea: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    distanceFromCityCenterKm: {
       type: Number,
       min: 0,
       default: null,
@@ -216,16 +199,34 @@ propertySchema.path("features").set((values = []) => [...new Set(values)]);
 propertySchema.path("tags").set((values = []) => [...new Set(values)]);
 
 propertySchema.pre("validate", function enforcePropertyRules(next) {
-  const nonLandTypes = this.propertyType !== "land";
+  const isResidentialType = residentialTypeSet.has(this.propertyType);
+  const isLandType = this.propertyType === "land";
+  const isCommercialType = this.propertyType === "commercial";
 
-  if (nonLandTypes) {
+  if (isResidentialType) {
     if (this.bedrooms === null || this.bedrooms === undefined) {
-      this.invalidate("bedrooms", "bedrooms is required for non-land properties");
+      this.invalidate("bedrooms", "bedrooms is required for residential properties");
     }
 
     if (this.bathrooms === null || this.bathrooms === undefined) {
-      this.invalidate("bathrooms", "bathrooms is required for non-land properties");
+      this.invalidate("bathrooms", "bathrooms is required for residential properties");
     }
+  }
+
+  if (isLandType && (this.landSize === null || this.landSize === undefined)) {
+    this.invalidate("landSize", "landSize is required for land properties");
+  }
+
+  if (isCommercialType && (this.floorArea === null || this.floorArea === undefined)) {
+    this.invalidate("floorArea", "floorArea is required for commercial properties");
+  }
+
+  const allowedStatuses = STATUS_OPTIONS_BY_LISTING_TYPE[this.listingType] || [];
+  if (!allowedStatuses.includes(this.status)) {
+    this.invalidate(
+      "status",
+      `status ${this.status} is not valid for listingType ${this.listingType}`
+    );
   }
 
   const coverCount = (this.images || []).filter((image) => image.isCover).length;
@@ -241,7 +242,6 @@ propertySchema.index({ city: 1 });
 propertySchema.index({ propertyType: 1 });
 propertySchema.index({ listingType: 1 });
 propertySchema.index({ status: 1 });
-propertySchema.index({ moderationStatus: 1 });
 propertySchema.index({ price: 1 });
 propertySchema.index({ createdBy: 1, createdAt: -1 });
 propertySchema.index({ createdAt: -1 });

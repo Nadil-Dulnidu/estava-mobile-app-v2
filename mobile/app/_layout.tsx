@@ -69,6 +69,14 @@ export default function RootLayout() {
                 options={{ headerShown: false }}
               />
               <Stack.Screen
+                name='properties/[id]/book-appointment'
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name='properties/[id]/send-inquiry'
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
                 name='properties/add'
                 options={{ headerShown: false }}
               />

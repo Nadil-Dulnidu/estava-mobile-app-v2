@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { theme } from '@/src/theme';
 import { LocalPickedImage, PropertyImage } from '@/src/types/property';
+import { resolvePropertyImageUrl } from '@/src/utils/format';
 
 interface ImagePickerUploaderProps {
   existingImages: PropertyImage[];
@@ -38,6 +39,8 @@ export const ImagePickerUploader = ({
       uri: asset.uri,
       fileName: asset.fileName || `property-${Date.now()}-${index}.jpg`,
       isCover: !hasCover && index === 0,
+      mimeType: asset.mimeType || null,
+      file: asset.file || null,
     }));
 
     onLocalImagesChange([...localImages, ...mapped]);
@@ -74,7 +77,11 @@ export const ImagePickerUploader = ({
       <View style={styles.list}>
         {existingImages.map((image, index) => (
           <View key={`existing-${image._id || index}`} style={styles.imageCard}>
-            <Image source={{ uri: image.url }} style={styles.image} contentFit='cover' />
+            <Image
+              source={resolvePropertyImageUrl(image) ? { uri: resolvePropertyImageUrl(image) } : undefined}
+              style={styles.image}
+              contentFit='cover'
+            />
             <View style={styles.imageActions}>
               <Pressable onPress={() => setExistingCover(index)}>
                 <Text style={[styles.cover, image.isCover && styles.coverActive]}>

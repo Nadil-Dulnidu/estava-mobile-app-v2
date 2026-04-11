@@ -11,6 +11,7 @@ export const createReviewSchema = Joi.object({
   rating: Joi.number().integer().min(REVIEW_RATING_MIN).max(REVIEW_RATING_MAX).required(),
   comment: Joi.string().trim().min(3).max(2000).allow(null, ""),
   userId: Joi.forbidden(),
+  userName: Joi.string().trim().min(1).max(120),
 });
 
 export const updateReviewSchema = Joi.object({
@@ -18,6 +19,7 @@ export const updateReviewSchema = Joi.object({
   comment: Joi.string().trim().min(3).max(2000).allow(null, ""),
   propertyId: Joi.forbidden(),
   userId: Joi.forbidden(),
+  userName: Joi.forbidden(),
 }).min(1);
 
 export const reviewIdParamSchema = Joi.object({

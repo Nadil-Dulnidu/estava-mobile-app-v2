@@ -8,6 +8,8 @@ export const PROPERTY_TYPES = [
   "commercial",
 ];
 
+export const RESIDENTIAL_PROPERTY_TYPES = ["apartment", "house", "villa"];
+
 export const PROPERTY_STATUSES = [
   "available",
   "sold",
@@ -28,4 +30,7 @@ export const STATUS_TRANSITIONS = {
   unavailable: ["available", "sold", "rented"],
 };
 
-export const PROPERTY_MODERATION_STATUSES = ["pending", "approved", "rejected"];
+export const STATUS_OPTIONS_BY_LISTING_TYPE = {
+  sale: ["available", "sold", "unavailable"],
+  rent: ["available", "rented", "unavailable"],
+};

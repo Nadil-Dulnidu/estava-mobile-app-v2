@@ -2,11 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import { theme } from '@/src/theme';
 import { useAppSession } from '@/src/context/AppSessionContext';
-import { useNotifications } from '@/src/context/NotificationContext';
 
 export default function AdminTabsLayout() {
   const { isLoaded, isSignedIn, role } = useAppSession();
-  const { unreadCount } = useNotifications();
 
   if (!isLoaded) return null;
   if (!isSignedIn) return <Redirect href='/(auth)/sign-in' />;
@@ -34,12 +32,17 @@ export default function AdminTabsLayout() {
         }}
       />
       <Tabs.Screen
-        name='moderation'
+        name='properties'
         options={{
-          title: 'Moderation',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name='shield-checkmark-outline' size={size} color={color} />
-          ),
+          title: 'Properties',
+          tabBarIcon: ({ color, size }) => <Ionicons name='business-outline' size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name='reviews'
+        options={{
+          title: 'Reviews',
+          tabBarIcon: ({ color, size }) => <Ionicons name='chatbubbles-outline' size={size} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -47,16 +50,6 @@ export default function AdminTabsLayout() {
         options={{
           title: 'Analytics',
           tabBarIcon: ({ color, size }) => <Ionicons name='stats-chart-outline' size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name='notifications'
-        options={{
-          title: 'Alerts',
-          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name='notifications-outline' size={size} color={color} />
-          ),
         }}
       />
       <Tabs.Screen

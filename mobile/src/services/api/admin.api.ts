@@ -1,17 +1,37 @@
 import { apiClient, authHeader } from '@/src/services/api/client';
-import { ApiListResponse, ApiSingleResponse } from '@/src/types/common';
-import { Property } from '@/src/types/property';
+import { ApiSingleResponse } from '@/src/types/common';
 
 type GetTokenFn = (options?: { template?: string }) => Promise<string | null>;
 
 export interface AdminDashboardSummary {
   totalProperties: number;
-  pendingModeration: number;
-  approvedProperties: number;
-  rejectedProperties: number;
   recentProperties: number;
   totalAppointments: number;
   totalInquiries: number;
+}
+
+export interface AdminDashboardAnalyticsPoint {
+  date: string;
+  count: number;
+  saleCount: number;
+  rentCount: number;
+}
+
+export interface AdminDashboardDistributionPoint {
+  label: string;
+  count: number;
+}
+
+export interface AdminDashboardAnalytics {
+  days: number;
+  dailyListings: AdminDashboardAnalyticsPoint[];
+  byType: AdminDashboardDistributionPoint[];
+  byStatus: AdminDashboardDistributionPoint[];
+  reviewMetrics: {
+    totalReviews: number;
+    averageRating: number;
+    lowRatingCount: number;
+  };
 }
 
 export const adminApi = {
@@ -24,24 +44,11 @@ export const adminApi = {
     return response.data;
   },
 
-  async getModerationProperties(getToken?: GetTokenFn) {
+  async getDashboardAnalytics(query: { days?: number } = {}, getToken?: GetTokenFn) {
     const headers = await authHeader(getToken);
-    const response = await apiClient.get<ApiListResponse<Property>>('/api/admin/properties/moderation', {
-      headers,
-    });
-    return response.data;
-  },
-
-  async moderateProperty(
-    id: string,
-    payload: { moderationStatus: 'pending' | 'approved' | 'rejected'; moderationNote?: string },
-    getToken?: GetTokenFn
-  ) {
-    const headers = await authHeader(getToken);
-    const response = await apiClient.patch<ApiSingleResponse<Property>>(
-      `/api/admin/properties/${id}/moderation`,
-      payload,
-      { headers }
+    const response = await apiClient.get<ApiSingleResponse<AdminDashboardAnalytics>>(
+      '/api/admin/dashboard/analytics',
+      { headers, params: query }
     );
     return response.data;
   },

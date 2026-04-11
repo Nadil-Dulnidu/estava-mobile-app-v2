@@ -9,6 +9,21 @@ import { theme } from "@/src/theme";
 
 WebBrowser.maybeCompleteAuthSession();
 
+const mapAuthErrorMessage = (input: unknown, fallback: string) => {
+  const message =
+    input instanceof Error
+      ? input.message
+      : typeof input === "string"
+        ? input
+        : fallback;
+
+  if (/captcha|turnstile|600010/i.test(message)) {
+    return "CAPTCHA could not load. Disable ad blockers/shields, allow third-party cookies, and try again.";
+  }
+
+  return message || fallback;
+};
+
 export default function SignUpScreen() {
   const { signUp, errors, fetchStatus } = useSignUp();
   const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
@@ -45,13 +60,13 @@ export default function SignUpScreen() {
     });
 
     if (error) {
-      setFormError(error.longMessage || error.message || "Unable to create account. Please check your details.");
+      setFormError(mapAuthErrorMessage(error.longMessage || error.message, "Unable to create account. Please check your details."));
       return;
     }
 
     const { error: sendError } = await signUp.verifications.sendEmailCode();
     if (sendError) {
-      setFormError(sendError.longMessage || sendError.message || "Failed to send verification code.");
+      setFormError(mapAuthErrorMessage(sendError.longMessage || sendError.message, "Failed to send verification code."));
       return;
     }
 
@@ -69,7 +84,7 @@ export default function SignUpScreen() {
     const { error } = await signUp.verifications.verifyEmailCode({ code: code.trim() });
 
     if (error) {
-      setFormError(error.longMessage || error.message || "Invalid verification code.");
+      setFormError(mapAuthErrorMessage(error.longMessage || error.message, "Invalid verification code."));
       return;
     }
 
@@ -95,7 +110,7 @@ export default function SignUpScreen() {
         router.replace("/");
       }
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Google sign-up failed.");
+      setFormError(mapAuthErrorMessage(error, "Google sign-up failed."));
     }
   };
 
@@ -267,9 +282,6 @@ export default function SignUpScreen() {
                     Sign in
                   </Link>
                 </View>
-
-                {/* Required for Clerk's bot protection */}
-                <View nativeID="clerk-captcha" />
               </>
             ) : (
               <>
@@ -335,6 +347,9 @@ export default function SignUpScreen() {
                 </Pressable>
               </>
             )}
+
+            {/* Required for Clerk bot protection (web custom flows) */}
+            <View nativeID="clerk-captcha" style={styles.captchaContainer} />
           </View>
 
           {/* Browse as guest */}
@@ -560,5 +575,8 @@ const styles = StyleSheet.create({
   guestLinkText: {
     ...theme.typography.bodyStrong,
     color: theme.colors.primary,
+  },
+  captchaContainer: {
+    minHeight: 64,
   },
 });

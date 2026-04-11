@@ -20,10 +20,6 @@ export interface Property {
   listingType: ListingType;
   propertyType: PropertyType;
   status: PropertyStatus;
-  moderationStatus?: 'pending' | 'approved' | 'rejected';
-  moderationNote?: string | null;
-  moderatedAt?: string | null;
-  moderatedBy?: string | null;
   address: string;
   city: string;
   district?: string | null;
@@ -33,6 +29,7 @@ export interface Property {
   parkingSpaces?: number | null;
   landSize?: number | null;
   floorArea?: number | null;
+  distanceFromCityCenterKm?: number | null;
   furnishedStatus?: FurnishedStatus;
   yearBuilt?: number | null;
   features: string[];
@@ -61,4 +58,6 @@ export interface LocalPickedImage {
   fileName: string;
   isCover: boolean;
   altText?: string;
+  mimeType?: string | null;
+  file?: Blob | null;
 }

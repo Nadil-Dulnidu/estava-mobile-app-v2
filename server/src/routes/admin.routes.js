@@ -4,10 +4,7 @@ import { USER_ROLES } from "../constants/auth.constants.js";
 import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 import validate from "../middlewares/validate.middleware.js";
 import {
-  adminPropertyIdParamSchema,
   dashboardSummaryQuerySchema,
-  moderatePropertySchema,
-  moderationListQuerySchema,
 } from "../validators/admin.validator.js";
 
 const router = Router();
@@ -22,16 +19,9 @@ router.get(
 );
 
 router.get(
-  "/properties/moderation",
-  validate(moderationListQuerySchema, "query"),
-  adminController.getModerationProperties
-);
-
-router.patch(
-  "/properties/:id/moderation",
-  validate(adminPropertyIdParamSchema, "params"),
-  validate(moderatePropertySchema),
-  adminController.moderateProperty
+  "/dashboard/analytics",
+  validate(dashboardSummaryQuerySchema, "query"),
+  adminController.getDashboardAnalytics
 );
 
 export default router;

@@ -5,6 +5,7 @@ import { StatusBadge } from '@/src/components/property/StatusBadge';
 import { theme } from '@/src/theme';
 import { Property } from '@/src/types/property';
 import { compactText, formatLkr, getCoverImage } from '@/src/utils/format';
+import { isCommercialPropertyType, isLandPropertyType, isResidentialPropertyType } from '@/src/utils/propertyRules';
 
 interface PropertyCardProps {
   property: Property;
@@ -35,8 +36,24 @@ export const PropertyCard = ({ property, onPress, onEdit, onDelete }: PropertyCa
         <Text style={styles.meta}>{property.listingType.toUpperCase()}</Text>
         <Ionicons name='business-outline' size={14} color={theme.colors.textMuted} />
         <Text style={styles.meta}>{property.propertyType}</Text>
-        <Ionicons name='bed-outline' size={14} color={theme.colors.textMuted} />
-        <Text style={styles.meta}>{property.bedrooms ?? '-'} bed</Text>
+        {isResidentialPropertyType(property.propertyType) && property.bedrooms != null ? (
+          <>
+            <Ionicons name='bed-outline' size={14} color={theme.colors.textMuted} />
+            <Text style={styles.meta}>{property.bedrooms} bed</Text>
+          </>
+        ) : null}
+        {isCommercialPropertyType(property.propertyType) && property.floorArea != null ? (
+          <>
+            <Ionicons name='resize-outline' size={14} color={theme.colors.textMuted} />
+            <Text style={styles.meta}>Floor {property.floorArea}</Text>
+          </>
+        ) : null}
+        {isLandPropertyType(property.propertyType) && property.landSize != null ? (
+          <>
+            <Ionicons name='map-outline' size={14} color={theme.colors.textMuted} />
+            <Text style={styles.meta}>Land {property.landSize}</Text>
+          </>
+        ) : null}
       </View>
 
       {(onEdit || onDelete) ? (

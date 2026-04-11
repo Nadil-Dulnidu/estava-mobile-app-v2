@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/expo';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/src/components/common/AppButton';
 import { EmptyState, ErrorState, LoadingState } from '@/src/components/common/StateViews';
 import { ScreenWrapper } from '@/src/components/common/ScreenWrapper';
@@ -18,39 +18,96 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: theme.colors.danger,
 };
 
+type SectionKey = 'received' | 'my';
+
+const getPropertyTitle = (property: Appointment['propertyId']) =>
+  typeof property === 'string' ? 'Property Visit' : property?.title || 'Property Visit';
+
 export const OwnerAppointmentsScreen = () => {
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const router = useRouter();
   const getTokenRef = useRef(getToken);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [items, setItems] = useState<Appointment[]>([]);
+  const [activeSection, setActiveSection] = useState<SectionKey>('received');
+  const [receivedItems, setReceivedItems] = useState<Appointment[]>([]);
+  const [myItems, setMyItems] = useState<Appointment[]>([]);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     getTokenRef.current = getToken;
   });
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    if (!userId) {
+      setError('Could not identify the current user');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const response = await appointmentApi.getAppointments({ page: 1, limit: 30 }, getTokenRef.current);
-      setItems(response.data || []);
+      const [received, ours] = await Promise.all([
+        appointmentApi.getMyReceivedAppointments(userId, { page: 1, limit: 30 }, getTokenRef.current),
+        appointmentApi.getMyAppointments(userId, { page: 1, limit: 30 }, getTokenRef.current),
+      ]);
+      setReceivedItems(received.data || []);
+      setMyItems(ours.data || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load appointments');
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const updateStatus = async (id: string, appointmentStatus: Appointment['appointmentStatus']) => {
-    const response = await appointmentApi.updateAppointmentStatus(id, appointmentStatus, getTokenRef.current);
-    setItems((prev) => prev.map((item) => (item._id === id ? response.data : item)));
+    setUpdatingId(id);
+    try {
+      const response = await appointmentApi.updateAppointmentStatus(id, appointmentStatus, getTokenRef.current);
+      setReceivedItems((prev) => prev.map((item) => (item._id === id ? response.data : item)));
+    } catch (updateError) {
+      Alert.alert('Status update failed', updateError instanceof Error ? updateError.message : 'Try again');
+    } finally {
+      setUpdatingId(null);
+    }
   };
+
+  const deleteAppointment = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await appointmentApi.deleteAppointment(id, getTokenRef.current);
+      setReceivedItems((prev) => prev.filter((item) => item._id !== id));
+      setMyItems((prev) => prev.filter((item) => item._id !== id));
+    } catch (deleteError) {
+      Alert.alert('Delete failed', deleteError instanceof Error ? deleteError.message : 'Try again');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const onDeletePress = (id: string) => {
+    Alert.alert('Delete appointment', 'Only pending appointments can be deleted. Continue?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => void deleteAppointment(id) },
+    ]);
+  };
+
+  const items = activeSection === 'received' ? receivedItems : myItems;
+
+  const stats = useMemo(
+    () => ({
+      pending: items.filter((i) => i.appointmentStatus === 'pending').length,
+      confirmed: items.filter((i) => i.appointmentStatus === 'confirmed').length,
+      completed: items.filter((i) => i.appointmentStatus === 'completed').length,
+    }),
+    [items]
+  );
 
   return (
     <ScreenWrapper scroll={false}>
@@ -66,25 +123,35 @@ export const OwnerAppointmentsScreen = () => {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Stats summary */}
+      <View style={styles.sectionTabs}>
+        <Pressable
+          onPress={() => setActiveSection('received')}
+          style={[styles.sectionTab, activeSection === 'received' && styles.activeSectionTab]}>
+          <Text style={[styles.sectionTabText, activeSection === 'received' && styles.activeSectionTabText]}>
+            Received ({receivedItems.length})
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setActiveSection('my')}
+          style={[styles.sectionTab, activeSection === 'my' && styles.activeSectionTab]}>
+          <Text style={[styles.sectionTabText, activeSection === 'my' && styles.activeSectionTabText]}>
+            My ({myItems.length})
+          </Text>
+        </Pressable>
+      </View>
+
       {!loading && !error && items.length > 0 && (
         <View style={styles.statsRow}>
           <View style={[styles.statChip, { backgroundColor: '#FFF8E1' }]}>
-            <Text style={[styles.statValue, { color: theme.colors.warning }]}>
-              {items.filter((i) => i.appointmentStatus === 'pending').length}
-            </Text>
+            <Text style={[styles.statValue, { color: theme.colors.warning }]}>{stats.pending}</Text>
             <Text style={styles.statLabel}>Pending</Text>
           </View>
           <View style={[styles.statChip, { backgroundColor: theme.colors.chipBg }]}>
-            <Text style={[styles.statValue, { color: theme.colors.primary }]}>
-              {items.filter((i) => i.appointmentStatus === 'confirmed').length}
-            </Text>
+            <Text style={[styles.statValue, { color: theme.colors.primary }]}>{stats.confirmed}</Text>
             <Text style={styles.statLabel}>Confirmed</Text>
           </View>
           <View style={[styles.statChip, { backgroundColor: '#E8F5E9' }]}>
-            <Text style={[styles.statValue, { color: theme.colors.success }]}>
-              {items.filter((i) => i.appointmentStatus === 'completed').length}
-            </Text>
+            <Text style={[styles.statValue, { color: theme.colors.success }]}>{stats.completed}</Text>
             <Text style={styles.statLabel}>Done</Text>
           </View>
         </View>
@@ -104,7 +171,7 @@ export const OwnerAppointmentsScreen = () => {
                     <Ionicons name='calendar' size={18} color={theme.colors.primary} />
                   </View>
                   <View>
-                    <Text style={styles.title}>Property Visit</Text>
+                    <Text style={styles.title}>{getPropertyTitle(item.propertyId)}</Text>
                     <Text style={styles.dateText}>{formatDate(item.appointmentDateTime)}</Text>
                   </View>
                 </View>
@@ -133,13 +200,19 @@ export const OwnerAppointmentsScreen = () => {
               {item.visitPurpose ? (
                 <Text style={styles.purpose}>{item.visitPurpose}</Text>
               ) : null}
-              {item.appointmentStatus === 'pending' || item.appointmentStatus === 'confirmed' ? (
+              {activeSection === 'my' ? (
+                <Text style={styles.sectionHint}>Track owner updates here. Status changes appear in real time.</Text>
+              ) : null}
+              {activeSection === 'received' &&
+              (item.appointmentStatus === 'pending' || item.appointmentStatus === 'confirmed') ? (
                 <View style={styles.actions}>
                   {item.appointmentStatus === 'pending' && (
                     <AppButton
                       label='Confirm'
                       icon='checkmark-outline'
                       onPress={() => updateStatus(item._id, 'confirmed')}
+                      loading={updatingId === item._id}
+                      disabled={updatingId === item._id}
                       style={styles.actionBtn}
                     />
                   )}
@@ -148,14 +221,34 @@ export const OwnerAppointmentsScreen = () => {
                     variant='secondary'
                     icon='checkmark-done-outline'
                     onPress={() => updateStatus(item._id, 'completed')}
+                    loading={updatingId === item._id}
+                    disabled={updatingId === item._id}
                     style={styles.actionBtn}
                   />
                 </View>
               ) : null}
+              {item.appointmentStatus === 'pending' ? (
+                <AppButton
+                  label='Delete'
+                  variant='danger'
+                  icon='trash-outline'
+                  onPress={() => onDeletePress(item._id)}
+                  loading={deletingId === item._id}
+                  disabled={deletingId === item._id || updatingId === item._id}
+                  style={styles.deleteBtn}
+                />
+              ) : null}
             </View>
           )}
           ListEmptyComponent={
-            <EmptyState title='No appointments' message='Appointment requests will appear here.' />
+            <EmptyState
+              title={activeSection === 'received' ? 'No received appointments' : 'No appointments from you yet'}
+              message={
+                activeSection === 'received'
+                  ? 'Appointment requests for your listings will appear here.'
+                  : 'Appointments you made as a buyer will appear here.'
+              }
+            />
           }
           contentContainerStyle={styles.listContent}
         />
@@ -192,6 +285,33 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     ...theme.typography.caption,
     color: theme.colors.textMuted,
+  },
+  sectionTabs: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+  },
+  sectionTab: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.md,
+    paddingVertical: theme.spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeSectionTab: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.chipBg,
+  },
+  sectionTabText: {
+    ...theme.typography.caption,
+    color: theme.colors.textMuted,
+    fontWeight: '600',
+  },
+  activeSectionTabText: {
+    color: theme.colors.primary,
   },
   statsRow: {
     flexDirection: 'row',
@@ -271,6 +391,11 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     marginTop: 2,
   },
+  sectionHint: {
+    ...theme.typography.caption,
+    color: theme.colors.textMuted,
+    marginTop: 2,
+  },
   actions: {
     flexDirection: 'row',
     gap: theme.spacing.xs,
@@ -278,6 +403,10 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
+    height: 42,
+  },
+  deleteBtn: {
+    marginTop: 2,
     height: 42,
   },
   listContent: {

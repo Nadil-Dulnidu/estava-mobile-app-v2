@@ -1,9 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@clerk/expo';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScreenWrapper } from '@/src/components/common/ScreenWrapper';
 import { useAppSession } from '@/src/context/AppSessionContext';
+import { propertyApi } from '@/src/services/api/property.api';
 import { theme } from '@/src/theme';
 
 type IoniconsName = keyof typeof Ionicons.glyphMap;
@@ -21,8 +25,11 @@ type MenuSection = {
 };
 
 export const ProfileScreen = () => {
-  const { user, isOwner, isAdmin, signOut } = useAppSession();
+  const { user, isAdmin, signOut } = useAppSession();
+  const { getToken } = useAuth();
   const router = useRouter();
+  const getTokenRef = useRef(getToken);
+  const [myListingCount, setMyListingCount] = useState(0);
 
   const performSignOut = async () => {
     try {
@@ -53,7 +60,26 @@ export const ProfileScreen = () => {
     ]);
   };
 
-  const showOwnerItems = isOwner || isAdmin;
+  const isAdminUser = isAdmin;
+
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  });
+
+  const loadMyListingsCount = useCallback(async () => {
+    if (isAdminUser) return;
+
+    try {
+      const response = await propertyApi.getMyProperties({ page: 1, limit: 1 }, getTokenRef.current);
+      setMyListingCount(response.meta?.total || response.data.length || 0);
+    } catch {
+      setMyListingCount(0);
+    }
+  }, [isAdminUser]);
+
+  useEffect(() => {
+    void loadMyListingsCount();
+  }, [loadMyListingsCount]);
 
   const accountSection: MenuSection = {
     title: 'Account',
@@ -67,14 +93,14 @@ export const ProfileScreen = () => {
     ],
   };
 
-  const ownerSection: MenuSection = {
-    title: 'Owner Tools',
-    items: showOwnerItems
+  const propertySection: MenuSection = {
+    title: 'Property Workspace',
+    items: !isAdminUser
       ? [
           {
             icon: 'business-outline',
             label: 'My Listings',
-            subtitle: 'Manage your property listings',
+            subtitle: `Manage your property listings (${myListingCount})`,
             onPress: () => router.push('/my-listings' as Href),
           },
           {
@@ -93,31 +119,66 @@ export const ProfileScreen = () => {
       : [],
   };
 
+  const adminSection: MenuSection = {
+    title: 'Admin Tools',
+    items: isAdminUser
+      ? [
+          {
+            icon: 'grid-outline',
+            label: 'Dashboard',
+            subtitle: 'Monitor platform activity',
+            onPress: () => router.push('/(admin)' as Href),
+          },
+          {
+            icon: 'business-outline',
+            label: 'Manage Properties',
+            subtitle: 'Update states, remove listings and reviews',
+            onPress: () => router.push('/(admin)/properties' as Href),
+          },
+          {
+            icon: 'stats-chart-outline',
+            label: 'Analytics',
+            subtitle: 'View trends and performance',
+            onPress: () => router.push('/(admin)/analytics' as Href),
+          },
+          {
+            icon: 'chatbubbles-outline',
+            label: 'Reviews',
+            subtitle: 'View property feedback and remove abuse',
+            onPress: () => router.push('/(admin)/reviews' as Href),
+          },
+        ]
+      : [],
+  };
+
   const actionsSection: MenuSection = {
     title: 'Actions',
-    items: [
-      {
-        icon: 'add-circle-outline',
-        label: 'Create New Listing',
-        subtitle: 'Post a new property for sale or rent',
-        onPress: () => router.push('/properties/add' as Href),
-      },
-      {
-        icon: 'search-outline',
-        label: 'Browse Listings',
-        subtitle: 'Explore available properties',
-        onPress: () => router.push('/(user)/explore'),
-      },
-    ],
+    items: isAdminUser
+      ? []
+      : [
+          {
+            icon: 'add-circle-outline',
+            label: 'Create New Listing',
+            subtitle: 'Post a new property for sale or rent',
+            onPress: () => router.push('/properties/add' as Href),
+          },
+          {
+            icon: 'search-outline',
+            label: 'Browse Listings',
+            subtitle: 'Explore available properties',
+            onPress: () => router.push('/(user)/explore'),
+          },
+        ],
   };
 
   const sections = [
     accountSection,
-    ownerSection,
+    adminSection,
+    propertySection,
     actionsSection,
   ].filter((s) => s.items.length > 0);
 
-  const roleBadge = isAdmin ? 'Admin' : isOwner ? 'Owner' : 'User';
+  const roleBadge = isAdmin ? 'Admin' : 'User';
   const initials = `${user?.firstName?.[0] ?? 'E'}${user?.lastName?.[0] ?? ''}`.toUpperCase();
 
   return (
@@ -126,7 +187,11 @@ export const ProfileScreen = () => {
       <View style={styles.profileHeader}>
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarLabel}>{initials}</Text>
+            {user?.imageUrl ? (
+              <Image source={{ uri: user.imageUrl }} style={styles.avatarImage} contentFit='cover' />
+            ) : (
+              <Text style={styles.avatarLabel}>{initials}</Text>
+            )}
           </View>
           <View style={styles.onlineIndicator} />
         </View>
@@ -136,7 +201,7 @@ export const ProfileScreen = () => {
         </Text>
         <View style={styles.roleBadge}>
           <Ionicons
-            name={isAdmin ? 'shield-checkmark' : isOwner ? 'key' : 'person'}
+            name={isAdmin ? 'shield-checkmark' : 'person'}
             size={12}
             color={theme.colors.primary}
           />
@@ -206,6 +271,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: theme.colors.primary,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: theme.radius.full,
   },
   avatarLabel: {
     fontSize: 30,

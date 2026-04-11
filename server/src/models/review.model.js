@@ -11,6 +11,12 @@ const reviewSchema = new Schema(
       index: true,
       trim: true,
     },
+    userName: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: 120,
+    },
     propertyId: {
       type: Schema.Types.ObjectId,
       ref: "Property",
