@@ -190,13 +190,12 @@ export const ListingsScreen = () => {
 
     try {
       const response = await favoriteApi.getMyFavorites(getTokenRef.current);
-      const nextMap = (response.data || []).reduce<Record<string, string>>((acc, item) => {
+      const favorites = (response.data || []) as Favorite[];
+      const nextMap: Record<string, string> = {};
+      for (const item of favorites) {
         const propertyId = getFavoritePropertyId(item);
-        if (propertyId) {
-          acc[propertyId] = item._id;
-        }
-        return acc;
-      }, {});
+        if (propertyId) nextMap[propertyId] = item._id;
+      }
       setFavoriteMap(nextMap);
     } catch {
       setFavoriteMap({});

@@ -2,9 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/expo';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { AppHeader } from '@/src/components/common/AppHeader';
-import { SearchBar } from '@/src/components/common/SearchBar';
+import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ErrorState, LoadingState } from '@/src/components/common/StateViews';
 import { ScreenWrapper } from '@/src/components/common/ScreenWrapper';
 import { propertyApi } from '@/src/services/api/property.api';
@@ -168,8 +166,35 @@ export const AdminReviewsScreen = () => {
 
   return (
     <ScreenWrapper scroll={false}>
-      <AppHeader title='Review Management' subtitle='Moderate rent-property reviews by listing' />
-      <SearchBar value={query} onChangeText={setQuery} placeholder='Search rent properties' />
+      {/* Page header */}
+      <View style={styles.pageHeader}>
+        <View>
+          <Text style={styles.pageTitle}>Review Management</Text>
+          <Text style={styles.pageSub}>Moderate rent-property reviews</Text>
+        </View>
+        <View style={styles.rentBadge}>
+          <Ionicons name='chatbubbles' size={13} color='#fff' />
+          <Text style={styles.rentBadgeText}>Rent Only</Text>
+        </View>
+      </View>
+
+      {/* Search */}
+      <View style={styles.searchWrap}>
+        <Ionicons name='search-outline' size={18} color={theme.colors.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder='Search rent properties...'
+          placeholderTextColor={theme.colors.textMuted}
+          value={query}
+          onChangeText={setQuery}
+          returnKeyType='search'
+        />
+        {query.length > 0 && (
+          <Pressable onPress={() => setQuery('')}>
+            <Ionicons name='close-circle' size={18} color={theme.colors.textMuted} />
+          </Pressable>
+        )}
+      </View>
 
       {loading ? <LoadingState message='Loading rent listings...' /> : null}
       {error ? <ErrorState message={error} onRetry={() => loadProperties()} /> : null}
@@ -194,6 +219,55 @@ export const AdminReviewsScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  pageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+    paddingTop: 4,
+  },
+  pageTitle: {
+    ...theme.typography.h2,
+    color: theme.colors.accentDark,
+  },
+  pageSub: {
+    ...theme.typography.body,
+    color: theme.colors.textMuted,
+    marginTop: 2,
+  },
+  rentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#6A1B9A',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 6,
+    borderRadius: theme.radius.full,
+  },
+  rentBadgeText: {
+    ...theme.typography.caption,
+    color: '#fff',
+    fontWeight: '700',
+  },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.sm,
+    height: 48,
+    gap: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+    ...theme.shadow.soft,
+  },
+  searchInput: {
+    flex: 1,
+    color: theme.colors.textPrimary,
+    ...theme.typography.body,
+    height: '100%',
+  },
   listContent: {
     paddingVertical: theme.spacing.sm,
     paddingBottom: theme.spacing.xxl,

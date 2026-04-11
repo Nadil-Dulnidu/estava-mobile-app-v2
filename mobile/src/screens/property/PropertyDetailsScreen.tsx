@@ -160,7 +160,7 @@ export const PropertyDetailsScreen = () => {
 
     try {
       const response = await favoriteApi.getMyFavorites(getTokenRef.current);
-      const next = (response.data || []).find((item) => {
+      const next = (response.data || []).find((item: { _id: string; propertyId: string | { _id: string } | null }) => {
         const propertyId =
           typeof item.propertyId === 'string' ? item.propertyId : item.propertyId?._id;
         return propertyId === id;

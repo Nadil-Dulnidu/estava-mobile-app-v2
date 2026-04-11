@@ -2,9 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/expo';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { AppHeader } from '@/src/components/common/AppHeader';
-import { SearchBar } from '@/src/components/common/SearchBar';
+import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ErrorState, LoadingState } from '@/src/components/common/StateViews';
 import { ScreenWrapper } from '@/src/components/common/ScreenWrapper';
 import { propertyApi } from '@/src/services/api/property.api';
@@ -261,15 +259,34 @@ export const AdminPropertiesScreen = () => {
 
   return (
     <ScreenWrapper scroll={false}>
-      <AppHeader
-        title='Property Management'
-        subtitle='Change status, remove properties, and moderate suspicious reviews'
-      />
-      <SearchBar
-        value={query}
-        onChangeText={setQuery}
-        placeholder='Search by title, city, or address'
-      />
+      {/* Page header */}
+      <View style={styles.pageHeader}>
+        <View>
+          <Text style={styles.pageTitle}>Property Management</Text>
+          <Text style={styles.pageSub}>Status changes, deletion & review moderation</Text>
+        </View>
+        <View style={styles.countBadge}>
+          <Text style={styles.countBadgeText}>{items.length} listings</Text>
+        </View>
+      </View>
+
+      {/* Search */}
+      <View style={styles.searchWrap}>
+        <Ionicons name='search-outline' size={18} color={theme.colors.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder='Search by title, city or address...'
+          placeholderTextColor={theme.colors.textMuted}
+          value={query}
+          onChangeText={setQuery}
+          returnKeyType='search'
+        />
+        {query.length > 0 && (
+          <Pressable onPress={() => setQuery('')}>
+            <Ionicons name='close-circle' size={18} color={theme.colors.textMuted} />
+          </Pressable>
+        )}
+      </View>
 
       {loading ? <LoadingState message='Loading properties...' /> : null}
       {error ? <ErrorState message={error} onRetry={() => load()} /> : null}
@@ -294,6 +311,55 @@ export const AdminPropertiesScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  pageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+    paddingTop: 4,
+  },
+  pageTitle: {
+    ...theme.typography.h2,
+    color: theme.colors.accentDark,
+  },
+  pageSub: {
+    ...theme.typography.body,
+    color: theme.colors.textMuted,
+    marginTop: 2,
+    maxWidth: 200,
+  },
+  countBadge: {
+    backgroundColor: theme.colors.chipBg,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 6,
+    borderRadius: theme.radius.full,
+  },
+  countBadgeText: {
+    ...theme.typography.caption,
+    color: theme.colors.primary,
+    fontWeight: '700',
+  },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.sm,
+    height: 48,
+    gap: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+    ...theme.shadow.soft,
+  },
+  searchInput: {
+    flex: 1,
+    color: theme.colors.textPrimary,
+    ...theme.typography.body,
+    height: '100%',
+  },
   listContent: {
     paddingVertical: theme.spacing.sm,
     paddingBottom: theme.spacing.xxl,

@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useResponsive } from '@/src/hooks/useResponsive';
 import { theme } from '@/src/theme';
 
 interface ScreenWrapperProps {
@@ -9,10 +10,20 @@ interface ScreenWrapperProps {
 }
 
 export const ScreenWrapper = ({ children, scroll = true }: ScreenWrapperProps) => {
+  const { contentMaxWidth, isTablet } = useResponsive();
+
+  const hPad = isTablet ? theme.spacing.xl : theme.spacing.lg;
+
   if (!scroll) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.container}>{children}</View>
+        <View style={styles.flex}>
+          <View style={[styles.innerFlex, { paddingHorizontal: hPad }]}>
+            <View style={[styles.maxWidth, { maxWidth: contentMaxWidth }]}>
+              {children}
+            </View>
+          </View>
+        </View>
       </SafeAreaView>
     );
   }
@@ -23,8 +34,12 @@ export const ScreenWrapper = ({ children, scroll = true }: ScreenWrapperProps) =
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={88}
         style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps='handled'>
-          {children}
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingHorizontal: hPad }]}
+          keyboardShouldPersistTaps='handled'>
+          <View style={[styles.maxWidth, { maxWidth: contentMaxWidth }]}>
+            {children}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -35,18 +50,23 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
+    alignItems: 'center',
   },
   flex: {
     flex: 1,
+    width: '100%',
   },
-  container: {
+  innerFlex: {
     flex: 1,
-    padding: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
+    alignItems: 'center',
+  },
+  maxWidth: {
+    width: '100%',
+    flex: 1,
   },
   scroll: {
-    padding: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.xxl,
+    alignItems: 'center',
   },
 });

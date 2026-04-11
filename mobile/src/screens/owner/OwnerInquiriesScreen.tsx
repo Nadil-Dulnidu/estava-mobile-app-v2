@@ -379,9 +379,10 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.md,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 48,
   },
   activeSectionTab: {
     borderColor: theme.colors.primary,
@@ -402,13 +403,17 @@ const styles = StyleSheet.create({
   },
   statChip: {
     flex: 1,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.xs,
     borderRadius: theme.radius.md,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   statValue: {
-    ...theme.typography.h3,
+    fontSize: 22,
+    fontWeight: '700',
+    fontFamily: 'Poppins-Regular',
   },
   statLabel: {
     ...theme.typography.caption,
@@ -437,12 +442,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inquiryIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: theme.radius.sm,
+    width: 44,
+    height: 44,
+    borderRadius: theme.radius.md,
     backgroundColor: theme.colors.chipBg,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   subject: {
     ...theme.typography.bodyStrong,

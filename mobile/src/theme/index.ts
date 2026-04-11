@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export const theme = {
   colors: {
     background: '#F4F7FB',
@@ -32,27 +34,45 @@ export const theme = {
     full: 999,
   },
   typography: {
-    h1: { fontSize: 38, fontWeight: '700' as const, fontFamily: 'Poppins-Regular' },
-    h2: { fontSize: 22, fontWeight: '700' as const, fontFamily: 'Poppins-Regular' },
-    h3: { fontSize: 17, fontWeight: '600' as const, fontFamily: 'Poppins-Regular' },
-    body: { fontSize: 13, fontWeight: '400' as const, fontFamily: 'Poppins-Regular' },
-    bodyStrong: { fontSize: 13, fontWeight: '600' as const, fontFamily: 'Poppins-Regular' },
-    caption: { fontSize: 10, fontWeight: '500' as const, fontFamily: 'Poppins-Regular' },
+    h1: { fontSize: 34, fontWeight: '700' as const, fontFamily: 'Poppins-Regular', lineHeight: 42 },
+    h2: { fontSize: 22, fontWeight: '700' as const, fontFamily: 'Poppins-Regular', lineHeight: 28 },
+    h3: { fontSize: 17, fontWeight: '600' as const, fontFamily: 'Poppins-Regular', lineHeight: 24 },
+    body: { fontSize: 14, fontWeight: '400' as const, fontFamily: 'Poppins-Regular', lineHeight: 20 },
+    bodyStrong: { fontSize: 14, fontWeight: '600' as const, fontFamily: 'Poppins-Regular', lineHeight: 20 },
+    caption: { fontSize: 12, fontWeight: '500' as const, fontFamily: 'Poppins-Regular', lineHeight: 16 },
   },
   shadow: {
-    card: {
-      shadowColor: '#1E3248',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.1,
-      shadowRadius: 16,
-      elevation: 3,
-    },
-    soft: {
-      shadowColor: '#1E3248',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 8,
-      elevation: 1,
-    },
+    card: Platform.select({
+      ios: {
+        shadowColor: '#1E3248',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 16,
+      },
+      android: { elevation: 3 },
+      default: {
+        shadowColor: '#1E3248',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 16,
+        elevation: 3,
+      },
+    })!,
+    soft: Platform.select({
+      ios: {
+        shadowColor: '#1E3248',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: { elevation: 1 },
+      default: {
+        shadowColor: '#1E3248',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 1,
+      },
+    })!,
   },
 };
