@@ -156,7 +156,7 @@ export default function SignInScreen() {
             <View style={styles.logoCircle}>
               <Ionicons name="business" size={28} color={theme.colors.primary} />
             </View>
-            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.title}>Welcome</Text>
             <Text style={styles.subtitle}>Sign in to continue exploring curated listings</Text>
           </View>
 
