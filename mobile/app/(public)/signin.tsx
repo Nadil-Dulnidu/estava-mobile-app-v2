@@ -1,5 +1,1 @@
-import { Redirect } from 'expo-router';
-
-export default function PublicSignInRoute() {
-  return <Redirect href='/(auth)/sign-in' />;
-}
+export { default } from '../(auth)/sign-in';

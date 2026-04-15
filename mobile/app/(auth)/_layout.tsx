@@ -1,16 +1,16 @@
 import { useAuth } from '@clerk/expo';
-import { Redirect, Stack } from 'expo-router';
+import { Redirect, usePathname } from 'expo-router';
 
 export default function AuthLayout() {
   const { isLoaded, isSignedIn } = useAuth();
+  const pathname = usePathname();
 
   if (!isLoaded) return null;
-  if (isSignedIn) return <Redirect href='/' />;
+  if (isSignedIn) return <Redirect href='/(user)' />;
 
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name='sign-in' />
-      <Stack.Screen name='sign-up' />
-    </Stack>
-  );
+  if (pathname === '/(auth)/sign-up') {
+    return <Redirect href='/(public)/signup' />;
+  }
+
+  return <Redirect href='/(public)/signin' />;
 }

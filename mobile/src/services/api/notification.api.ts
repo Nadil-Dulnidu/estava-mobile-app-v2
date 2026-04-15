@@ -26,4 +26,13 @@ export const notificationApi = {
     );
     return response.data;
   },
+
+  async clearAll(getToken?: GetTokenFn) {
+    const headers = await authHeader(getToken);
+    const response = await apiClient.delete<ApiSingleResponse<{ deletedCount: number }>>(
+      '/api/notifications',
+      { headers }
+    );
+    return response.data;
+  },
 };

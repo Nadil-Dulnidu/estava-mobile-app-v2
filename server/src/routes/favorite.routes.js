@@ -6,6 +6,7 @@ import {
   createFavoriteSchema,
   favoriteIdParamSchema,
   favoriteUserIdParamSchema,
+  updateFavoriteNoteSchema,
   updateFavoriteSchema,
 } from "../validators/favorite.validator.js";
 
@@ -22,6 +23,13 @@ router.get(
   "/user/:id",
   validate(favoriteUserIdParamSchema, "params"),
   favoriteController.getFavoritesByUser
+);
+
+router.patch(
+  "/:id/note",
+  validate(favoriteIdParamSchema, "params"),
+  validate(updateFavoriteNoteSchema),
+  favoriteController.updateFavoriteNote
 );
 
 router

@@ -7,12 +7,13 @@ import AppError from "../utils/AppError.js";
 
 const userIdRegex = /^user_[a-zA-Z0-9]+$/;
 const IMAGEKIT_SIGNED_URL_TTL_SECONDS = 60 * 60 * 24;
+const normalizeNote = (value) => value?.trim() || null;
 
 const sanitizeFavoritePayload = (payload = {}) => {
   const next = {};
 
   if (Object.hasOwn(payload, "note")) {
-    next.note = payload.note?.trim() || null;
+    next.note = normalizeNote(payload.note);
   }
 
   if (Object.hasOwn(payload, "priorityLevel")) {
@@ -185,6 +186,25 @@ export const updateFavorite = async (favoriteId, payload, actorId) => {
     return mapFavoriteForClient(favorite);
   } catch (error) {
     logger.error("Favorite update failed", {
+      actorId,
+      favoriteId,
+      message: error.message,
+    });
+    throw error;
+  }
+};
+
+export const updateFavoriteNote = async (favoriteId, note, actorId) => {
+  ensureAuthenticatedActor(actorId);
+
+  const favorite = await findFavoriteByIdForActor(favoriteId, actorId);
+  favorite.note = normalizeNote(note);
+
+  try {
+    await favorite.save();
+    return mapFavoriteForClient(favorite);
+  } catch (error) {
+    logger.error("Favorite note update failed", {
       actorId,
       favoriteId,
       message: error.message,

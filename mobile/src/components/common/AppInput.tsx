@@ -11,7 +11,7 @@ export const AppInput = ({ label, error, style, ...props }: AppInputProps) => (
     <Text style={styles.label}>{label}</Text>
     <TextInput
       {...props}
-      style={[styles.input, style, error && styles.errorInput]}
+      style={[styles.input, props.multiline && styles.multilineInput, style, error && styles.errorInput]}
       placeholderTextColor={theme.colors.textMuted}
     />
     {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -34,6 +34,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.sm,
     backgroundColor: theme.colors.surface,
     color: theme.colors.textPrimary,
+  },
+  multilineInput: {
+    height: 120,
+    textAlignVertical: 'top',
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.sm,
   },
   errorInput: {
     borderColor: theme.colors.danger,

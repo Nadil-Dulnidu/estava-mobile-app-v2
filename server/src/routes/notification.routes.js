@@ -18,7 +18,8 @@ router.use(...authenticate);
 router
   .route("/")
   .post(validate(createNotificationSchema), notificationController.createNotification)
-  .get(validate(listNotificationsQuerySchema, "query"), notificationController.getNotifications);
+  .get(validate(listNotificationsQuerySchema, "query"), notificationController.getNotifications)
+  .delete(notificationController.clearNotifications);
 
 router.get(
   "/user/:id",

@@ -51,6 +51,32 @@ export const getNotifications = asyncHandler(async (req, res) => {
   });
 });
 
+export const clearNotifications = asyncHandler(async (req, res) => {
+  const actor = getActor(req);
+
+  try {
+    const result = await notificationService.clearNotifications(actor.id);
+
+    logger.info("Notifications cleared", {
+      actorId: actor.id,
+      actorRole: actor.role,
+      deletedCount: result.deletedCount,
+    });
+
+    return sendSuccess(res, {
+      message: "Notifications cleared successfully",
+      data: result,
+    });
+  } catch (error) {
+    logger.error("Notification clear request failed", {
+      actorId: actor.id,
+      actorRole: actor.role,
+      message: error.message,
+    });
+    throw error;
+  }
+});
+
 export const getNotificationById = asyncHandler(async (req, res) => {
   const actor = getActor(req);
   const notification = await notificationService.getNotificationById(

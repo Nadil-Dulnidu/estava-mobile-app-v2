@@ -87,6 +87,35 @@ export const updateFavorite = asyncHandler(async (req, res) => {
   }
 });
 
+export const updateFavoriteNote = asyncHandler(async (req, res) => {
+  const actorId = getActorId(req);
+
+  try {
+    const favorite = await favoriteService.updateFavoriteNote(
+      req.params.id,
+      req.body.note,
+      actorId
+    );
+
+    logger.info("Favorite note updated", {
+      favoriteId: favorite._id,
+      actorId,
+    });
+
+    return sendSuccess(res, {
+      message: "Favorite note updated successfully",
+      data: favorite,
+    });
+  } catch (error) {
+    logger.error("Favorite note update request failed", {
+      actorId,
+      favoriteId: req.params.id,
+      message: error.message,
+    });
+    throw error;
+  }
+});
+
 export const deleteFavorite = asyncHandler(async (req, res) => {
   const actorId = getActorId(req);
 

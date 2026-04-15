@@ -59,6 +59,12 @@ export default function PublicTabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name='signup'
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

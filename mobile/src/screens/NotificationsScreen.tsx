@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { EmptyState } from '@/src/components/common/StateViews';
 import { ScreenWrapper } from '@/src/components/common/ScreenWrapper';
 import { useNotifications } from '@/src/context/NotificationContext';
@@ -18,7 +18,34 @@ const getTypeStyle = (type?: string) =>
   TYPE_ICON[type ?? ''] ?? { name: 'notifications' as const, bg: theme.colors.chipBg, color: theme.colors.primary };
 
 export const NotificationsScreen = () => {
-  const { notifications, refresh, markAsRead, unreadCount } = useNotifications();
+  const { notifications, refresh, markAsRead, unreadCount, clearAll } = useNotifications();
+  const [isClearing, setIsClearing] = useState(false);
+
+  const runClearAll = useCallback(async () => {
+    setIsClearing(true);
+    try {
+      const deletedCount = await clearAll();
+      const noun = deletedCount === 1 ? 'notification' : 'notifications';
+      Alert.alert('Cleared', deletedCount > 0 ? `Deleted ${deletedCount} ${noun}.` : 'No notifications to clear.');
+    } catch (error) {
+      Alert.alert('Clear failed', error instanceof Error ? error.message : 'Unable to clear notifications');
+    } finally {
+      setIsClearing(false);
+    }
+  }, [clearAll]);
+
+  const confirmClearAll = useCallback(() => {
+    if (!notifications.length || isClearing) return;
+
+    Alert.alert(
+      'Clear all notifications',
+      'This will permanently delete all notifications from your inbox.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear all', style: 'destructive', onPress: () => void runClearAll() },
+      ]
+    );
+  }, [notifications.length, isClearing, runClearAll]);
 
   const renderItem = useCallback(
     ({ item }: { item: AppNotification }) => {
@@ -68,11 +95,34 @@ export const NotificationsScreen = () => {
             {unreadCount > 0 ? `${unreadCount} unread message${unreadCount > 1 ? 's' : ''}` : 'All caught up 🎉'}
           </Text>
         </View>
-        {unreadCount > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{unreadCount}</Text>
-          </View>
-        )}
+
+        <View style={styles.headerActions}>
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadCount}</Text>
+            </View>
+          )}
+          {notifications.length > 0 && (
+            <Pressable
+              onPress={confirmClearAll}
+              disabled={isClearing}
+              style={({ pressed }) => [
+                styles.clearBtn,
+                isClearing && styles.clearBtnDisabled,
+                pressed && !isClearing && styles.clearBtnPressed,
+              ]}
+            >
+              {isClearing ? (
+                <ActivityIndicator size='small' color={theme.colors.danger} />
+              ) : (
+                <>
+                  <Ionicons name='trash-outline' size={14} color={theme.colors.danger} />
+                  <Text style={styles.clearBtnText}>Clear all</Text>
+                </>
+              )}
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {/* Summary strip when there are unread */}
@@ -120,6 +170,11 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     marginTop: 2,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
   badge: {
     minWidth: 32,
     height: 32,
@@ -133,6 +188,27 @@ const styles = StyleSheet.create({
     ...theme.typography.bodyStrong,
     color: '#fff',
     fontSize: 14,
+  },
+  clearBtn: {
+    height: 34,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.danger,
+    paddingHorizontal: theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFF5F5',
+  },
+  clearBtnText: {
+    ...theme.typography.caption,
+    color: theme.colors.danger,
+  },
+  clearBtnPressed: {
+    opacity: 0.82,
+  },
+  clearBtnDisabled: {
+    opacity: 0.6,
   },
   summaryStrip: {
     flexDirection: 'row',

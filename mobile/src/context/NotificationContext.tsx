@@ -1,9 +1,9 @@
-import { useAuth } from '@clerk/expo';
-import Constants from 'expo-constants';
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
-import { notificationApi } from '@/src/services/api/notification.api';
-import { AppNotification } from '@/src/types/notification';
+import { useAuth } from "@clerk/expo";
+import Constants from "expo-constants";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client";
+import { notificationApi } from "@/src/services/api/notification.api";
+import { AppNotification } from "@/src/types/notification";
 
 interface NotificationContextValue {
   notifications: AppNotification[];
@@ -13,6 +13,7 @@ interface NotificationContextValue {
   dismissBanner: () => void;
   refresh: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
+  clearAll: () => Promise<number>;
 }
 
 const NotificationContext = createContext<NotificationContextValue | undefined>(undefined);
@@ -23,9 +24,9 @@ const getSocketBaseUrl = () => {
   const apiUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
   if (apiUrl) return apiUrl;
 
-  const hostUri = Constants.expoConfig?.hostUri || '';
-  const host = hostUri.split(':')[0];
-  if (!host) return '';
+  const hostUri = Constants.expoConfig?.hostUri || "";
+  const host = hostUri.split(":")[0];
+  if (!host) return "";
   return `http://${host}:5000`;
 };
 
@@ -41,10 +42,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   // firing on every Clerk getToken reference cycle
   getTokenRef.current = getToken;
 
-  const unreadCount = useMemo(
-    () => notifications.filter((item) => item.status === 'unread').length,
-    [notifications]
-  );
+  const unreadCount = useMemo(() => notifications.filter((item) => item.status === "unread").length, [notifications]);
 
   const refresh = useCallback(async () => {
     if (!isSignedIn) {
@@ -62,10 +60,15 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   }, [isSignedIn]);
 
   const markAsRead = useCallback(async (id: string) => {
-    await notificationApi.markReadState(id, 'read', getTokenRef.current);
-    setNotifications((prev) =>
-      prev.map((item) => (item._id === id ? { ...item, status: 'read' } : item))
-    );
+    await notificationApi.markReadState(id, "read", getTokenRef.current);
+    setNotifications((prev) => prev.map((item) => (item._id === id ? { ...item, status: "read" } : item)));
+  }, []);
+
+  const clearAll = useCallback(async () => {
+    const response = await notificationApi.clearAll(getTokenRef.current);
+    setNotifications([]);
+    setBanner(null);
+    return response.data?.deletedCount ?? 0;
   }, []);
 
   // Stable dismissBanner — extracted as useCallback so its reference
@@ -99,14 +102,14 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const socket = io(socketUrl, {
-      transports: ['websocket'],
+      transports: ["websocket"],
       auth: { userId },
     });
     socketRef.current = socket;
 
-    socket.on('connect', () => setIsConnected(true));
-    socket.on('disconnect', () => setIsConnected(false));
-    socket.on('notification:new', (payload: { success?: boolean; data?: AppNotification }) => {
+    socket.on("connect", () => setIsConnected(true));
+    socket.on("disconnect", () => setIsConnected(false));
+    socket.on("notification:new", (payload: { success?: boolean; data?: AppNotification }) => {
       const next = payload?.data;
       if (!next) return;
 
@@ -114,7 +117,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       setBanner(next);
     });
 
-    socket.on('connect_error', () => setIsConnected(false));
+    socket.on("connect_error", () => setIsConnected(false));
 
     return () => {
       if (socketRef.current) {
@@ -133,8 +136,9 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       dismissBanner,
       refresh,
       markAsRead,
+      clearAll,
     }),
-    [notifications, unreadCount, isConnected, banner, dismissBanner, refresh, markAsRead]
+    [notifications, unreadCount, isConnected, banner, dismissBanner, refresh, markAsRead, clearAll],
   );
 
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
@@ -143,7 +147,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 export const useNotifications = () => {
   const value = useContext(NotificationContext);
   if (!value) {
-    throw new Error('useNotifications must be used within NotificationProvider');
+    throw new Error("useNotifications must be used within NotificationProvider");
   }
   return value;
 };

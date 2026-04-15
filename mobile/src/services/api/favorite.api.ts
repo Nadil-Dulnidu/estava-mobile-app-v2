@@ -3,6 +3,8 @@ import { ApiListResponse, ApiSingleResponse } from '@/src/types/common';
 
 type GetTokenFn = (options?: { template?: string }) => Promise<string | null>;
 
+export const FAVORITE_NOTE_MAX_LENGTH = 500;
+
 export interface Favorite {
   _id: string;
   userId: string;
@@ -25,11 +27,26 @@ export const favoriteApi = {
     return { ...payload, data };
   },
 
-  async addFavorite(propertyId: string, getToken?: GetTokenFn) {
+  async addFavorite(propertyId: string, getToken?: GetTokenFn, note?: string | null) {
     const headers = await authHeader(getToken);
+    const payload = {
+      propertyId,
+      ...(note !== undefined ? { note } : {}),
+    };
+
     const response = await apiClient.post<ApiSingleResponse<Favorite>>(
       '/api/favorites',
-      { propertyId },
+      payload,
+      { headers }
+    );
+    return response.data;
+  },
+
+  async updateFavoriteNote(id: string, note: string | null, getToken?: GetTokenFn) {
+    const headers = await authHeader(getToken);
+    const response = await apiClient.patch<ApiSingleResponse<Favorite>>(
+      `/api/favorites/${id}/note`,
+      { note },
       { headers }
     );
     return response.data;

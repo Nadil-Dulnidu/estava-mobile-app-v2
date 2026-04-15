@@ -58,9 +58,9 @@ export default function SignInScreen() {
 
     if (signIn.status === "complete") {
       await signIn.finalize({
-        navigate: ({ session, decorateUrl }) => {
+        navigate: ({ session }) => {
           if (session?.currentTask) return;
-          router.replace(decorateUrl("/") as any);
+          router.replace("/(user)");
         },
       });
       return;
@@ -103,9 +103,9 @@ export default function SignInScreen() {
 
     if (signIn.status === "complete") {
       await signIn.finalize({
-        navigate: ({ session, decorateUrl }) => {
+        navigate: ({ session }) => {
           if (session?.currentTask) return;
-          router.replace(decorateUrl("/") as any);
+          router.replace("/(user)");
         },
       });
     }
@@ -119,7 +119,7 @@ export default function SignInScreen() {
 
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
-        router.replace("/");
+        router.replace("/(user)");
       }
     } catch (error) {
       setFormError(mapAuthErrorMessage(error, "Google sign-in failed."));
@@ -256,7 +256,7 @@ export default function SignInScreen() {
                 {/* Link to sign up */}
                 <View style={styles.linkRow}>
                   <Text style={styles.linkText}>Don&apos;t have an account?</Text>
-                  <Link href="/(auth)/sign-up" style={styles.linkAction}>
+                  <Link href="/(public)/signup" style={styles.linkAction}>
                     Sign up
                   </Link>
                 </View>

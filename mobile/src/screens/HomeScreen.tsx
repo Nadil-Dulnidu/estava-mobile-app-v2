@@ -149,7 +149,6 @@ export const HomeScreen = () => {
   // derive stats
   const statsForSale = properties.filter((p) => p.listingType === "sale").length;
   const statsForRent = properties.filter((p) => p.listingType === "rent").length;
-  const statsAvailable = properties.filter((p) => p.status === "available").length;
 
   const greeting = (() => {
     const hour = new Date().getHours();
@@ -216,11 +215,6 @@ export const HomeScreen = () => {
             {/* ── Market Stats ── */}
             <Text style={styles.sectionLabel}>Market Overview</Text>
             <View style={styles.statsGrid}>
-              <View style={[styles.statCard, { backgroundColor: theme.colors.primary }]}>
-                <Ionicons name="home" size={20} color="#fff" />
-                <Text style={styles.statNum}>{properties.length}</Text>
-                <Text style={styles.statLbl}>Total Listings</Text>
-              </View>
               <View style={[styles.statCard, { backgroundColor: "#1565C0" }]}>
                 <Ionicons name="pricetag" size={20} color="#fff" />
                 <Text style={styles.statNum}>{statsForSale}</Text>
@@ -230,11 +224,6 @@ export const HomeScreen = () => {
                 <Ionicons name="key" size={20} color="#fff" />
                 <Text style={styles.statNum}>{statsForRent}</Text>
                 <Text style={styles.statLbl}>For Rent</Text>
-              </View>
-              <View style={[styles.statCard, { backgroundColor: theme.colors.success }]}>
-                <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                <Text style={styles.statNum}>{statsAvailable}</Text>
-                <Text style={styles.statLbl}>Available</Text>
               </View>
             </View>
 
@@ -612,3 +601,4 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xxl,
   },
 });
+

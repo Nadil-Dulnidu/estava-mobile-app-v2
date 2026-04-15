@@ -90,9 +90,9 @@ export default function SignUpScreen() {
 
     if (signUp.status === "complete") {
       await signUp.finalize({
-        navigate: ({ session, decorateUrl }) => {
+        navigate: ({ session }) => {
           if (session?.currentTask) return;
-          router.replace(decorateUrl("/") as any);
+          router.replace("/(user)");
         },
       });
     } else {
@@ -107,7 +107,7 @@ export default function SignUpScreen() {
       const { createdSessionId, setActive } = await startOAuthFlow();
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
-        router.replace("/");
+        router.replace("/(user)");
       }
     } catch (error) {
       setFormError(mapAuthErrorMessage(error, "Google sign-up failed."));
@@ -278,7 +278,7 @@ export default function SignUpScreen() {
                 {/* Link to sign in */}
                 <View style={styles.linkRow}>
                   <Text style={styles.linkText}>Already have an account?</Text>
-                  <Link href="/(auth)/sign-in" style={styles.linkAction}>
+                  <Link href="/(public)/signin" style={styles.linkAction}>
                     Sign in
                   </Link>
                 </View>

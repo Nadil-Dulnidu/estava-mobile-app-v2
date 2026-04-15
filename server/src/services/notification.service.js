@@ -158,6 +158,21 @@ export const listNotifications = async (query, actorId, actorRole) => {
   };
 };
 
+export const clearNotifications = async (actorId) => {
+  ensureAuthenticatedActor(actorId);
+
+  try {
+    const result = await Notification.deleteMany({ userId: actorId });
+    return { deletedCount: result.deletedCount ?? 0 };
+  } catch (error) {
+    logger.error("Notification clear failed", {
+      actorId,
+      message: error.message,
+    });
+    throw error;
+  }
+};
+
 export const getNotificationById = async (notificationId, actorId, actorRole) => {
   ensureAuthenticatedActor(actorId);
 
