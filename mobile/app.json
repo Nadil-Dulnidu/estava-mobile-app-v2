@@ -20,7 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.mobile"
+      "package": "com.nadildulnidu.Estava"
     },
     "web": {
       "output": "static",
@@ -50,7 +50,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "3c5d4274-bf60-452a-bb51-dc689a6884d5"
+        "projectId": "adae5a67-0b37-4f55-8a41-bbf96c52e3de"
       }
     },
     "owner": "nadildulnidu"
