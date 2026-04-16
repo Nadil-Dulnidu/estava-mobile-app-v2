@@ -12,7 +12,6 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { FlatList, ScrollView, SectionList } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { InAppNotificationBanner } from '@/src/components/common/InAppNotificationBanner';
 import { AppSessionProvider } from '@/src/context/AppSessionContext';
 import { NotificationProvider } from '@/src/context/NotificationContext';
 
@@ -56,7 +55,6 @@ export default function RootLayout() {
       <ClerkProvider publishableKey={publishableKey!} tokenCache={tokenCache}>
         <AppSessionProvider>
           <NotificationProvider>
-            <InAppNotificationBanner />
             <Stack>
               <Stack.Screen name='index' options={{ headerShown: false }} />
               <Stack.Screen name='(auth)' options={{ headerShown: false }} />

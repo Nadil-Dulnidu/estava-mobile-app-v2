@@ -1,6 +1,8 @@
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
+import * as Notifications from "expo-notifications";
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Platform } from "react-native";
 import { io, Socket } from "socket.io-client";
 import { notificationApi } from "@/src/services/api/notification.api";
 import { AppNotification } from "@/src/types/notification";
@@ -9,14 +11,25 @@ interface NotificationContextValue {
   notifications: AppNotification[];
   unreadCount: number;
   isConnected: boolean;
-  banner: AppNotification | null;
-  dismissBanner: () => void;
   refresh: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   clearAll: () => Promise<number>;
 }
 
 const NotificationContext = createContext<NotificationContextValue | undefined>(undefined);
+const isNativeMobile = Platform.OS === "ios" || Platform.OS === "android";
+const NOTIFICATION_CHANNEL_ID = "default";
+
+if (isNativeMobile) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 const getSocketBaseUrl = () => {
   const explicit = process.env.EXPO_PUBLIC_SOCKET_URL;
@@ -30,13 +43,39 @@ const getSocketBaseUrl = () => {
   return `http://${host}:5000`;
 };
 
+const ensureNativeNotificationsReady = async () => {
+  if (!isNativeMobile) return false;
+
+  try {
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNEL_ID, {
+        name: "Default",
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+      });
+    }
+
+    const currentPermissions = await Notifications.getPermissionsAsync();
+    let permissionStatus = currentPermissions.status;
+
+    if (permissionStatus !== "granted") {
+      const requestPermissions = await Notifications.requestPermissionsAsync();
+      permissionStatus = requestPermissions.status;
+    }
+
+    return permissionStatus === "granted";
+  } catch {
+    return false;
+  }
+};
+
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const { isSignedIn, userId, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   const socketRef = useRef<Socket | null>(null);
+  const nativeNotificationsEnabledRef = useRef(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [banner, setBanner] = useState<AppNotification | null>(null);
 
   // Inline ref update — safe to do during render, avoids the useEffect
   // firing on every Clerk getToken reference cycle
@@ -67,13 +106,8 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const clearAll = useCallback(async () => {
     const response = await notificationApi.clearAll(getTokenRef.current);
     setNotifications([]);
-    setBanner(null);
     return response.data?.deletedCount ?? 0;
   }, []);
-
-  // Stable dismissBanner — extracted as useCallback so its reference
-  // doesn't change on every useMemo recalc, preventing render loops in consumers
-  const dismissBanner = useCallback(() => setBanner(null), []);
 
   useEffect(() => {
     if (isSignedIn) {
@@ -82,6 +116,28 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       setNotifications([]);
     }
   }, [isSignedIn, refresh]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    if (!isSignedIn) {
+      nativeNotificationsEnabledRef.current = false;
+      return () => {
+        mounted = false;
+      };
+    }
+
+    (async () => {
+      const enabled = await ensureNativeNotificationsReady();
+      if (mounted) {
+        nativeNotificationsEnabledRef.current = enabled;
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isSignedIn]);
 
   useEffect(() => {
     if (!isSignedIn || !userId) {
@@ -114,7 +170,22 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       if (!next) return;
 
       setNotifications((prev) => [next, ...prev.filter((item) => item._id !== next._id)]);
-      setBanner(next);
+      if (nativeNotificationsEnabledRef.current) {
+        void Notifications.scheduleNotificationAsync({
+          content: {
+            title: next.title,
+            body: next.message,
+            data: {
+              notificationId: next._id,
+              type: next.type,
+              relatedEntityId: next.relatedEntityId ?? undefined,
+              relatedEntityType: next.relatedEntityType ?? undefined,
+            },
+            sound: true,
+          },
+          trigger: null,
+        });
+      }
     });
 
     socket.on("connect_error", () => setIsConnected(false));
@@ -132,13 +203,11 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       notifications,
       unreadCount,
       isConnected,
-      banner,
-      dismissBanner,
       refresh,
       markAsRead,
       clearAll,
     }),
-    [notifications, unreadCount, isConnected, banner, dismissBanner, refresh, markAsRead, clearAll],
+    [notifications, unreadCount, isConnected, refresh, markAsRead, clearAll],
   );
 
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
