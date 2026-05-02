@@ -1,0 +1,143 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StatusBadge } from '@/src/components/property/StatusBadge';
+import { theme } from '@/src/theme';
+import { Property } from '@/src/types/property';
+import { compactText, formatLkr, getCoverImage } from '@/src/utils/format';
+import { isCommercialPropertyType, isLandPropertyType, isResidentialPropertyType } from '@/src/utils/propertyRules';
+
+interface PropertyCardProps {
+  property: Property;
+  onPress: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}
+
+export const PropertyCard = ({ property, onPress, onEdit, onDelete }: PropertyCardProps) => (
+  <Pressable onPress={onPress} style={styles.card}>
+    <Image
+      source={getCoverImage(property) ? { uri: getCoverImage(property) } : undefined}
+      style={styles.image}
+      contentFit='cover'
+    />
+    <View style={styles.body}>
+      <View style={styles.rowBetween}>
+        <View style={styles.textBlock}>
+          <Text style={styles.title}>{compactText(property.title, 48)}</Text>
+          <Text style={styles.sub}>{property.city}</Text>
+        </View>
+        <StatusBadge status={property.status} />
+      </View>
+
+      <Text style={styles.price}>{formatLkr(property.price)}</Text>
+      <View style={styles.metaRow}>
+        <Ionicons name='pricetag-outline' size={14} color={theme.colors.textMuted} />
+        <Text style={styles.meta}>{property.listingType.toUpperCase()}</Text>
+        <Ionicons name='business-outline' size={14} color={theme.colors.textMuted} />
+        <Text style={styles.meta}>{property.propertyType}</Text>
+        {isResidentialPropertyType(property.propertyType) && property.bedrooms != null ? (
+          <>
+            <Ionicons name='bed-outline' size={14} color={theme.colors.textMuted} />
+            <Text style={styles.meta}>{property.bedrooms} bed</Text>
+          </>
+        ) : null}
+        {isCommercialPropertyType(property.propertyType) && property.floorArea != null ? (
+          <>
+            <Ionicons name='resize-outline' size={14} color={theme.colors.textMuted} />
+            <Text style={styles.meta}>Floor {property.floorArea}</Text>
+          </>
+        ) : null}
+        {isLandPropertyType(property.propertyType) && property.landSize != null ? (
+          <>
+            <Ionicons name='map-outline' size={14} color={theme.colors.textMuted} />
+            <Text style={styles.meta}>Land {property.landSize}</Text>
+          </>
+        ) : null}
+      </View>
+
+      {(onEdit || onDelete) ? (
+        <View style={styles.actions}>
+          {onEdit ? (
+            <Pressable onPress={onEdit} style={styles.iconBtn}>
+              <Ionicons name='create-outline' size={18} color={theme.colors.textPrimary} />
+            </Pressable>
+          ) : null}
+          {onDelete ? (
+            <Pressable onPress={onDelete} style={styles.iconBtn}>
+              <Ionicons name='trash-outline' size={18} color={theme.colors.danger} />
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  </Pressable>
+);
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.lg,
+    overflow: 'hidden',
+    marginBottom: theme.spacing.md,
+    ...theme.shadow.card,
+  },
+  image: {
+    height: 170,
+    width: '100%',
+    backgroundColor: '#E2E8F0',
+  },
+  body: {
+    padding: theme.spacing.md,
+    gap: 6,
+  },
+  rowBetween: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: theme.spacing.sm,
+  },
+  textBlock: {
+    flex: 1,
+  },
+  title: {
+    ...theme.typography.h3,
+    color: theme.colors.textPrimary,
+  },
+  sub: {
+    ...theme.typography.body,
+    color: theme.colors.textSecondary,
+  },
+  price: {
+    ...theme.typography.bodyStrong,
+    color: theme.colors.primary,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+  },
+  meta: {
+    ...theme.typography.caption,
+    color: theme.colors.textMuted,
+    textTransform: 'capitalize',
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
+  },
+  iconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

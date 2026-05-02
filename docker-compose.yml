@@ -1,0 +1,13 @@
+services:
+  estava-server:
+    build:
+      context: ./server
+      target: dev
+      dockerfile: Dockerfile
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
